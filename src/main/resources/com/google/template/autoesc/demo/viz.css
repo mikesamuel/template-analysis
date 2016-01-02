@@ -1,0 +1,83 @@
+tr { vertical-align: top; }
+
+/* viz.js will add the .abv-wrapper nodes and .abbreviated classes to try
+   and fit .abv elements on one line. */
+.diaresis { display: none }
+.abv-wrapper.abbreviated > * {
+  display: none
+}
+.abv-wrapper.abbreviated > .diaresis {
+  display: inline; color: blue
+}
+.abv-wrapper.abbreviated:hover > * {
+  display: inherit
+}
+.abv-wrapper.abbreviated:hover > .diaresis {
+  display: none
+}
+
+/* Grammar nodes. */
+.def, .ref, .end-of-input { font-style: italic }
+.charset, .string-input, .lit, .or > .binary-op {
+  font-family: monospace; color: #0a0
+}
+.or.multiline {
+  display: inline-block;
+  /* Parentheses to the left and right. */
+  border-left: 2px solid black;
+  border-right: 2px solid black;
+  border-radius: 1ex;
+}
+.or.multiline > .operand {
+  display: block; margin-left: .25em; margin-right: .25em
+}
+.or.multiline > .operand:first-child {
+  margin-left: 1em
+}
+.or.multiline > .operand > .binary-op {
+  vertical-align: top;
+}
+.charset .non-ascii-chars {
+  display: inline-block;
+  color: #444;
+  background: #aaa;
+  max-width: 1em;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.charset .non-ascii-chars:hover {
+  display:inline;
+  max-width: auto;
+  white-space: normal;
+}
+
+/* Show the current log event only. */
+#parse-log, .stack, .output {
+  list-style: none;
+  padding-left: 0;
+}
+
+.overlap-all { position: relative }
+.overlap-all > * {
+  position: absolute;
+  top: 0; left: 0;
+  background: #888;
+}
+
+#parse-log.slideshow > li.entry {
+  /* slideshow is added after we inspect bounds to classify nodes into
+     single/multiline. */
+  display: none;
+}
+
+#parse-log.slideshow > li.entry.current {
+  display: block;
+}
+
+
+/* Styling for log events. */
+.entry > .event,
+.entry > .stack,
+.entry > .output {
+  margin-top: 1ex;
+}
