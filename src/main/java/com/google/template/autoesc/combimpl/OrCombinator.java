@@ -151,14 +151,7 @@ public class OrCombinator extends BinaryCombinator {
       if (allButLast instanceof LoopCombinator) {
         suffixOperator = "*";
 	final LoopCombinator loop = (LoopCombinator) allButLast;
-        bodyVisualizable = new Visualizable() {
-          @Override
-          public void visualize(DetailLevel ilvl, VizOutput iout)
-          throws IOException {
-            AbstractVisualizable.visualize(
-                loop, loop.getVizTypeClassName(), ilvl, iout, loop.body);
-          }
-        };
+        bodyVisualizable = new VizLoop(loop);
         bodyPrecedence = loop.body.precedence();
       } else {
         bodyVisualizable = allButLast;
@@ -237,4 +230,20 @@ public class OrCombinator extends BinaryCombinator {
       // Do nothing
     }
   };
+}
+
+
+final class VizLoop implements Visualizable {
+  private final LoopCombinator loop;
+
+  VizLoop(LoopCombinator loop) {
+    this.loop = loop;
+  }
+
+  @Override
+  public void visualize(DetailLevel ilvl, VizOutput iout)
+  throws IOException {
+    AbstractVisualizable.visualize(
+        loop, loop.getVizTypeClassName(), ilvl, iout, loop.body);
+  }
 }

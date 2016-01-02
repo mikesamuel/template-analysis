@@ -83,7 +83,6 @@ public class SilentLoggingWatcher implements ParseWatcher {
   public ImmutableList<LogEvent> getEvents() { return log.build(); }
 
   /** Dumps the event log thus far to out. */
-  @SuppressWarnings("synthetic-access")
   public void printLog(Appendable out) throws IOException {
     for (final LogEvent e : getEvents()) {
       String typeName = e.t.name();
@@ -115,71 +114,6 @@ public class SilentLoggingWatcher implements ParseWatcher {
         partToLog.visualize(DetailLevel.SHORT, logOut);
       }
       out.append("\n");
-    }
-  }
-
-  private static final class VizRolledBackInput implements Visualizable {
-    private final LogEvent e;
-
-    private VizRolledBackInput(LogEvent e) {
-      this.e = e;
-    }
-
-    @Override
-    public void visualize(DetailLevel ilvl, VizOutput iout)
-    throws IOException {
-      boolean first = true;
-      for (Branch f : e.from) {
-        if (first) {
-          first = false;
-        } else {
-          iout.text(", ");
-        }
-        f.visualize(ilvl, iout);
-      }
-      iout.text("  \u2192  ");
-      if (e.to.isPresent()) {
-        e.to.get().visualize(ilvl, iout);
-      }
-    }
-  }
-
-  private static final class VizCharactersConsumed implements Visualizable {
-    private final Combinator c;
-    private final LogEvent e;
-
-    private VizCharactersConsumed(Combinator c, LogEvent e) {
-      this.c = c;
-      this.e = e;
-    }
-
-    @Override
-    public void visualize(DetailLevel ilvl, VizOutput iout)
-        throws IOException {
-      c.visualize(ilvl, iout);
-      if (e.p.isPresent()) {
-        iout.text("  \u27f8  ");
-        e.p.get().inp.visualize(ilvl, iout);
-      }
-    }
-  }
-
-  private static final class VizStack implements Visualizable {
-    private final LogEvent e;
-
-    private VizStack(LogEvent e) {
-      this.e = e;
-    }
-
-    @Override
-    public void visualize(DetailLevel ilvl, VizOutput iout)
-    throws IOException{
-      boolean needsComma = false;
-      for (Combinator c : e.p.get().stack.rev()) {
-        if (needsComma) { iout.text(", "); }
-        needsComma = true;
-        c.visualize(ilvl, iout);
-      }
     }
   }
 
@@ -245,6 +179,72 @@ public class SilentLoggingWatcher implements ParseWatcher {
         sb.append(' ').append(c.get());
       }
       return sb.toString();
+    }
+  }
+}
+
+
+final class VizRolledBackInput implements Visualizable {
+  private final SilentLoggingWatcher.LogEvent e;
+
+  VizRolledBackInput(SilentLoggingWatcher.LogEvent e) {
+    this.e = e;
+  }
+
+  @Override
+  public void visualize(DetailLevel ilvl, VizOutput iout)
+  throws IOException {
+    boolean first = true;
+    for (ParseWatcher.Branch f : e.from) {
+      if (first) {
+        first = false;
+      } else {
+        iout.text(", ");
+      }
+      f.visualize(ilvl, iout);
+    }
+    iout.text("  \u2192  ");
+    if (e.to.isPresent()) {
+      e.to.get().visualize(ilvl, iout);
+    }
+  }
+}
+
+final class VizCharactersConsumed implements Visualizable {
+  private final Combinator c;
+  private final SilentLoggingWatcher.LogEvent e;
+
+  VizCharactersConsumed(Combinator c, SilentLoggingWatcher.LogEvent e) {
+    this.c = c;
+    this.e = e;
+  }
+
+  @Override
+  public void visualize(DetailLevel ilvl, VizOutput iout)
+      throws IOException {
+    c.visualize(ilvl, iout);
+    if (e.p.isPresent()) {
+      iout.text("  \u27f8  ");
+      e.p.get().inp.visualize(ilvl, iout);
+    }
+  }
+}
+
+final class VizStack implements Visualizable {
+  private final SilentLoggingWatcher.LogEvent e;
+
+  VizStack(SilentLoggingWatcher.LogEvent e) {
+    this.e = e;
+  }
+
+  @Override
+  public void visualize(DetailLevel ilvl, VizOutput iout)
+  throws IOException{
+    boolean needsComma = false;
+    for (Combinator c : e.p.get().stack.rev()) {
+      if (needsComma) { iout.text(", "); }
+      needsComma = true;
+      c.visualize(ilvl, iout);
     }
   }
 }
