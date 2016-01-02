@@ -7,7 +7,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
@@ -28,6 +28,7 @@ import com.google.template.autoesc.out.OutputContext;
 import com.google.template.autoesc.viz.AbstractVisualizable;
 import com.google.template.autoesc.viz.DetailLevel;
 import com.google.template.autoesc.viz.Visualizable;
+import com.google.template.autoesc.viz.Visualizables;
 import com.google.template.autoesc.viz.VizOutput;
 
 import static com.google.template.autoesc.viz.AttribName.CLASS;
@@ -171,22 +172,11 @@ public class OrCombinator extends BinaryCombinator {
       if (parenthesize) { out.text(")"); }
       AbstractVisualizable.visualize(
           last, ((EmptyCombinator) last).getVizTypeClassName(), lvl, out,
-          new Visualizable() {
-            @Override
-            public void visualize(DetailLevel ilvl, VizOutput iout)
-            throws IOException {
-              iout.text(suffixOperator);
-            }
-          });  // TODO suffix
+          Visualizables.text(suffixOperator));  // TODO suffix
     } else {
       writeBinaryOperator(
           first, second, precedence(),
-          new Predicate<BinaryCombinator>() {
-            @Override
-            public boolean apply(BinaryCombinator c) {
-              return c instanceof OrCombinator;
-            }
-          },
+          Predicates.instanceOf(OrCombinator.class),
           OR_OPERATOR_INFIXER,
           lvl, out);
     }

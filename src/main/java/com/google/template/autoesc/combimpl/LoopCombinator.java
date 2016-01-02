@@ -3,8 +3,6 @@ package com.google.template.autoesc.combimpl;
 import java.io.Closeable;
 import java.io.IOException;
 
-import javax.annotation.Nullable;
-
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Supplier;
@@ -165,7 +163,7 @@ public final class LoopCombinator extends UnaryCombinator {
   }
 
   @Override
-  public boolean equals(@Nullable Object o) {
+  public boolean equals(Object o) {
     if (!(o instanceof LoopCombinator)) { return false; }
     LoopCombinator that = (LoopCombinator) o;
     return this.body.equals(that.body);

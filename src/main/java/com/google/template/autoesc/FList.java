@@ -3,8 +3,6 @@ package com.google.template.autoesc;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 
-import javax.annotation.Nullable;
-
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
@@ -285,7 +283,7 @@ public abstract class FList<T> implements Iterable<T> {
     }
 
     @Override
-    public boolean equals(@Nullable Object o) {
+    public boolean equals(Object o) {
       if (!(o instanceof ConsFList)) { return false; }
       ConsFList<?> that = (ConsFList<?>) o;
       return Objects.equal(this.hd, that.hd) && tl.equals(that.tl);
@@ -322,6 +320,9 @@ final class FListIterator<T> implements Iterator<T> {
 
   @Override
   public T next() throws NoSuchElementException {
+    if (ls.isEmpty()) {
+      throw new NoSuchElementException();
+    }
     T hd = ls.hd();
     ls = ls.tl();
     return hd;

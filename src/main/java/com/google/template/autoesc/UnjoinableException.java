@@ -7,9 +7,9 @@ public class UnjoinableException extends Exception {
   private static final long serialVersionUID = -1200464708627500462L;
 
   /** The parse state that couldn't be joined with {@link #b}. */
-  public final Parse a;
+  public transient final Parse a;
   /** The parse state that couldn't be joined with {@link #a}. */
-  public final Parse b;
+  public transient final Parse b;
   /** Part of {@link #a} that couldn't be reconciled with {@link #bElement}. */
   public final Object aElement;
   /** Part of {@link #b} that couldn't be reconciled with {@link #aElement}. */

@@ -1,8 +1,6 @@
 package com.google.template.autoesc;
 
 import javax.annotation.CheckReturnValue;
-import javax.annotation.Nullable;
-
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -209,7 +207,7 @@ public final class Parse implements OutputContext {
 
   /** Structural equality. */
   @Override
-  public boolean equals(@Nullable Object o) {
+  public boolean equals(Object o) {
     if (!(o instanceof Parse)) { return false; }
     Parse that = (Parse) o;
     return this.inp.equals(that.inp)

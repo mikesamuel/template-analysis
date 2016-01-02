@@ -2,8 +2,6 @@ package com.google.template.autoesc.combimpl;
 
 import java.io.IOException;
 
-import javax.annotation.Nullable;
-
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
@@ -61,6 +59,7 @@ public final class UntilCombinator extends AbstractCombinator {
     return new Function<InputCursor, InputCursor>() {
       @Override
       public InputCursor apply(InputCursor input) {
+        if (input == null) { throw new IllegalArgumentException(); }
         return new LimitedInputCursor(input, limit, lang);
       }
 
@@ -71,7 +70,7 @@ public final class UntilCombinator extends AbstractCombinator {
     };
   }
 
-  private static final UnwrapFunction UNWRAP = new UnwrapFunction();
+  private static final UnlimitFunction UNWRAP = new UnlimitFunction();
 
   /** */
   public UntilCombinator(
@@ -146,7 +145,7 @@ public final class UntilCombinator extends AbstractCombinator {
 
 
   @Override
-  public boolean equals(@Nullable Object o) {
+  public boolean equals(Object o) {
     if (!(o instanceof UntilCombinator)) { return false; }
     UntilCombinator that = (UntilCombinator) o;
     return this.body.equals(that.body) && this.limit.equals(that.limit);
@@ -204,10 +203,17 @@ public final class UntilCombinator extends AbstractCombinator {
 }
 
 
-final class UnwrapFunction implements Function<InputCursor, InputCursor> {
+final class UnlimitFunction implements Function<InputCursor, InputCursor> {
+  /**
+   * @param inp should only receive outputs from {@link UntilCombinator#wrapper}
+   */
   @Override
-  public InputCursor apply(InputCursor input) {
-    return ((LimitedInputCursor) input).getUnlimited();
+  public InputCursor apply(InputCursor inp) {
+    if (!(inp instanceof LimitedInputCursor)) {
+      throw new IllegalArgumentException(
+          "not wrapped by UntilCombinator: " + inp);
+    }
+    return ((LimitedInputCursor) inp).getUnlimited();
   }
   @Override
   public String toString() {

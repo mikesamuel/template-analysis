@@ -3,8 +3,6 @@ package com.google.template.autoesc.inp;
 import java.util.List;
 
 import javax.annotation.CheckReturnValue;
-import javax.annotation.Nullable;
-
 import com.google.template.autoesc.Combinators;
 import com.google.template.autoesc.viz.AbstractVisualizable;
 
@@ -78,7 +76,7 @@ public abstract class InputCursor extends AbstractVisualizable {
    * consumes no input.
    */
   @Override
-  public abstract boolean equals(@Nullable Object o);
+  public abstract boolean equals(Object o);
 
   /** True if there are no available bytes. */
   public final boolean isEmpty() {

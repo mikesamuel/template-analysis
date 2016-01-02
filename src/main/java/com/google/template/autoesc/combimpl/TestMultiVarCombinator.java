@@ -8,6 +8,8 @@ import com.google.template.autoesc.NodeMetadata;
 import com.google.template.autoesc.ProdName;
 import com.google.template.autoesc.var.MultiVariable;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+
 
 /**
  * Passes when a variable has a value which is in a specified set.
@@ -20,6 +22,12 @@ extends AbstractVarCombinator<ImmutableSet<T>> {
     super(mds, var, ImmutableSet.of(ImmutableSet.of(value)));
   }
 
+  @SuppressFBWarnings(
+      value="BC_UNCONFIRMED_CAST",
+      justification="Ctors only accept MultiVariables, and not serializable.")
+  MultiVariable<T> getMultivar() {
+    return (MultiVariable<T>) this.var;
+  }
 
   @Override
   public TestMultiVarCombinator<T> unfold(
@@ -27,7 +35,7 @@ extends AbstractVarCombinator<ImmutableSet<T>> {
     if (newMetadata.equals(this.md)) {
       return this;
     }
-    MultiVariable<T> multivar = (MultiVariable<T>) this.var;
+    MultiVariable<T> multivar = getMultivar();
     T value = this.vals.iterator().next().iterator().next();
     return new TestMultiVarCombinator<>(
         Suppliers.ofInstance(newMetadata), multivar, value);

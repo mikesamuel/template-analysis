@@ -1,6 +1,7 @@
 package com.google.template.autoesc;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collections;
@@ -18,6 +19,7 @@ import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
@@ -42,6 +44,8 @@ import com.google.template.autoesc.viz.AbstractVisualizable;
 import com.google.template.autoesc.viz.DetailLevel;
 import com.google.template.autoesc.viz.TextTables;
 import com.google.template.autoesc.viz.VizOutput;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import static com.google.template.autoesc.viz.TextTables.column;
 
@@ -336,6 +340,20 @@ final class GrammarSearchGraph {
       }
       return delta;
     }
+
+    @Override
+    public int hashCode() {
+      return Objects.hashCode(nRollbacks, distanceFromBranchEnd, key.t);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+      if (!(o instanceof SearchStep)) {
+        return false;
+      }
+      SearchStep that = (SearchStep) o;
+      return this.compareTo(that) == 0;
+    }
   }
 
   /**
@@ -441,7 +459,8 @@ final class GrammarSearchGraph {
           @SuppressWarnings("synthetic-access")
           @Override
           public FList<ProdName> apply(Parse p) {
-            Preconditions.checkState(p.lang == lang);
+            if (p == null) { throw new IllegalArgumentException(); }
+            Preconditions.checkArgument(p.lang == lang);
             return prodNameChainOf(p.stack);
           }
         }));
@@ -456,6 +475,9 @@ final class GrammarSearchGraph {
     return node;
   }
 
+  @SuppressFBWarnings(
+      value="UPM_UNCALLED_PRIVATE_METHOD",
+      justification="Used when debug flag is turned on.")
   private static <T extends Comparable<T>> ImmutableList<T> sortedList(
       Iterable<? extends T> elements) {
     List<T> copy = new ArrayList<>();
@@ -590,17 +612,7 @@ final class GrammarSearchGraph {
                 // ENTER instead of EXIT_PASSING so that we get the proper left
                 // marker.
                 keyD.epsilonTransition(TransitionType.ENTER, lang, ctx),
-                new Function<ParseDelta, ParseDelta>() {
-                  @Override
-                  public ParseDelta apply(ParseDelta enterResult) {
-                    return ParseDelta
-                        .pass()
-                        .withIOTransform(enterResult.ioTransform)
-                        //.withOutput(new UnvisitedReferentMarker(name))
-                        .withOutputs(expandedOutput.get())
-                        .build();
-                  }
-                }));
+                new SubstituteExpandedOutput(expandedOutput.get())));
           } else {
             results = ImmutableList.of();
           }
@@ -770,12 +782,8 @@ final class GrammarSearchGraph {
   private Optional<FList<Output>> expandReference(
       ReferenceCombinator ref, FList<Output> out) {
     ProdName name = ref.name;
-    FList<Output> varOuts = out.filter(new Predicate<Output>() {
-      @Override
-      public boolean apply(Output o) {
-        return o instanceof VariableOutput;
-      }
-    });
+    FList<Output> varOuts = out.filter(
+         Predicates.instanceOf(VariableOutput.class));
     Optional<FList<Output>> expansion =
         expandedPassingReferences.get(name, varOuts);
     if (expansion == null) {
@@ -926,7 +934,9 @@ final class GrammarSearchGraph {
         .build();
   }
 
-  static final class MatchComparator implements Comparator<Node> {
+  static final class MatchComparator implements Comparator<Node>, Serializable {
+    private static final long serialVersionUID = -851358832778765717L;
+
     static final MatchComparator INSTANCE = new MatchComparator();
 
     @Override
@@ -975,4 +985,26 @@ extends AbstractVisualizable implements ParseWatcher.Branch {
     out.text(prefix + prodName.text);
   }
 
+}
+
+
+final class SubstituteExpandedOutput
+implements Function<ParseDelta, ParseDelta> {
+  final FList<Output> output;
+
+  SubstituteExpandedOutput(FList<Output> output) {
+    this.output = output;
+  }
+
+  @Override
+  public ParseDelta apply(ParseDelta enterResult) {
+    if (enterResult == null) {
+      throw new IllegalArgumentException();
+    }
+    return ParseDelta
+        .pass()
+        .withIOTransform(enterResult.ioTransform)
+        .withOutputs(output)
+        .build();
+  }
 }

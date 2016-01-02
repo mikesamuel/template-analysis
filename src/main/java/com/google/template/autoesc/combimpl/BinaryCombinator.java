@@ -3,8 +3,6 @@ package com.google.template.autoesc.combimpl;
 import java.io.Closeable;
 import java.io.IOException;
 
-import javax.annotation.Nullable;
-
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
@@ -62,7 +60,8 @@ public abstract class BinaryCombinator extends AbstractCombinator {
 
   protected static void writeBinaryOperator(
       Combinator first, Combinator second,
-      final Precedence p, final Predicate<BinaryCombinator> shouldFlatten,
+      final Precedence p,
+      final Predicate<? super BinaryCombinator> shouldFlatten,
       final Infixer infixer, final DetailLevel lvl, final VizOutput out)
   throws IOException {
     class Writer {
@@ -119,7 +118,7 @@ public abstract class BinaryCombinator extends AbstractCombinator {
 
 
   @Override
-  public boolean equals(@Nullable Object o) {
+  public boolean equals(Object o) {
     if (o == null || o.getClass() != getClass()) { return false; }
     BinaryCombinator that = (BinaryCombinator) o;
     return this.first.equals(that.first) && this.second.equals(that.second);

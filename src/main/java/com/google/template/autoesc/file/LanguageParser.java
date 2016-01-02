@@ -53,13 +53,7 @@ public class LanguageParser {
   public void parse(String inp, Source src) {
     if (parser == null) {
       parser = new Parser(
-          new ParseWatcher.Branch() {
-            @Override
-            public void visualize(DetailLevel lvl, VizOutput out)
-                throws IOException {
-              out.text("Language");
-            }
-          },
+          LanguageParserBranch.INSTANCE,
           GrammarGrammar.LANG,
           TeeParseWatcher.create(watcher, longestParseWatcher));
       parser.startParse();
@@ -220,4 +214,17 @@ final class LongestParseWatcher implements ParseWatcher {
     // Do nothing
   }
 
+}
+
+
+final class LanguageParserBranch implements ParseWatcher.Branch {
+  static final LanguageParserBranch INSTANCE = new LanguageParserBranch();
+
+  private LanguageParserBranch() {}
+
+  @Override
+  public void visualize(DetailLevel lvl, VizOutput out)
+      throws IOException {
+    out.text("Language");
+  }
 }

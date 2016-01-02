@@ -83,6 +83,7 @@ public class SilentLoggingWatcher implements ParseWatcher {
   public ImmutableList<LogEvent> getEvents() { return log.build(); }
 
   /** Dumps the event log thus far to out. */
+  @SuppressWarnings("synthetic-access")
   public void printLog(Appendable out) throws IOException {
     for (final LogEvent e : getEvents()) {
       String typeName = e.t.name();
@@ -93,57 +94,18 @@ public class SilentLoggingWatcher implements ParseWatcher {
           partToLog = e.p.get().inp;
           break;
         case PAUSED: case FINISHED:
-          partToLog = new Visualizable() {
-            @Override
-            public void visualize(DetailLevel ilvl, VizOutput iout)
-            throws IOException{
-              boolean needsComma = false;
-              for (Combinator c : e.p.get().stack.rev()) {
-                if (needsComma) { iout.text(", "); }
-                needsComma = true;
-                c.visualize(ilvl, iout);
-              }
-            }
-          };
+          partToLog = new VizStack(e);
           break;
         default:
           if (e.c.isPresent()) {
             final Combinator c = e.c.get();
             if (c instanceof CharSetCombinator) {
-              partToLog = new Visualizable() {
-                @Override
-                public void visualize(DetailLevel ilvl, VizOutput iout)
-                    throws IOException {
-                  c.visualize(ilvl, iout);
-                  if (e.p.isPresent()) {
-                    iout.text("  \u27f8  ");
-                    e.p.get().inp.visualize(ilvl, iout);
-                  }
-                }
-              };
+              partToLog = new VizCharactersConsumed(c, e);
             } else {
               partToLog = c;
             }
           } else if (!e.from.isEmpty() || e.to.isPresent()) {
-            partToLog = new Visualizable() {
-              @Override
-              public void visualize(DetailLevel ilvl, VizOutput iout)
-              throws IOException {
-                boolean first = true;
-                for (Branch f : e.from) {
-                  if (first) {
-                    first = false;
-                  } else {
-                    iout.text(", ");
-                  }
-                  f.visualize(ilvl, iout);
-                }
-                iout.text("  \u2192  ");
-                if (e.to.isPresent()) {
-                  e.to.get().visualize(ilvl, iout);
-                }
-              }
-            };
+            partToLog = new VizRolledBackInput(e);
           }
           break;
       }
@@ -153,6 +115,71 @@ public class SilentLoggingWatcher implements ParseWatcher {
         partToLog.visualize(DetailLevel.SHORT, logOut);
       }
       out.append("\n");
+    }
+  }
+
+  private static final class VizRolledBackInput implements Visualizable {
+    private final LogEvent e;
+
+    private VizRolledBackInput(LogEvent e) {
+      this.e = e;
+    }
+
+    @Override
+    public void visualize(DetailLevel ilvl, VizOutput iout)
+    throws IOException {
+      boolean first = true;
+      for (Branch f : e.from) {
+        if (first) {
+          first = false;
+        } else {
+          iout.text(", ");
+        }
+        f.visualize(ilvl, iout);
+      }
+      iout.text("  \u2192  ");
+      if (e.to.isPresent()) {
+        e.to.get().visualize(ilvl, iout);
+      }
+    }
+  }
+
+  private static final class VizCharactersConsumed implements Visualizable {
+    private final Combinator c;
+    private final LogEvent e;
+
+    private VizCharactersConsumed(Combinator c, LogEvent e) {
+      this.c = c;
+      this.e = e;
+    }
+
+    @Override
+    public void visualize(DetailLevel ilvl, VizOutput iout)
+        throws IOException {
+      c.visualize(ilvl, iout);
+      if (e.p.isPresent()) {
+        iout.text("  \u27f8  ");
+        e.p.get().inp.visualize(ilvl, iout);
+      }
+    }
+  }
+
+  private static final class VizStack implements Visualizable {
+    private final LogEvent e;
+
+    private VizStack(LogEvent e) {
+      this.e = e;
+    }
+
+    @Override
+    public void visualize(DetailLevel ilvl, VizOutput iout)
+    throws IOException{
+      boolean needsComma = false;
+      for (Combinator c : e.p.get().stack.rev()) {
+        if (needsComma) { iout.text(", "); }
+        needsComma = true;
+        c.visualize(ilvl, iout);
+      }
     }
   }
 

@@ -4,8 +4,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
-import javax.annotation.Nullable;
-
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableRangeMap;
@@ -216,7 +214,7 @@ extends InputCursor implements CharSequence {
     return Objects.hashCode(s.substring(position, limit), length(), isComplete);
   }
   @Override
-  public boolean equals(@Nullable Object o) {
+  public boolean equals(Object o) {
     if (!(o instanceof RawCharsInputCursor)) { return false; }
     RawCharsInputCursor that = (RawCharsInputCursor) o;
     int n = length();

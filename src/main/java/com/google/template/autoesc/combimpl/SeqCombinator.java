@@ -5,7 +5,7 @@ import java.util.EnumSet;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
-import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
@@ -27,8 +27,10 @@ import com.google.template.autoesc.inp.RawCharsInputCursor;
 import com.google.template.autoesc.out.OutputContext;
 import com.google.template.autoesc.viz.AbstractVisualizable;
 import com.google.template.autoesc.viz.DetailLevel;
-import com.google.template.autoesc.viz.Visualizable;
+import com.google.template.autoesc.viz.Visualizables;
 import com.google.template.autoesc.viz.VizOutput;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Executes A and then B on the remaining input.
@@ -111,12 +113,7 @@ public final class SeqCombinator extends BinaryCombinator {
   throws IOException {
     writeBinaryOperator(
         first, second, precedence(),
-        new Predicate<BinaryCombinator>() {
-          @Override
-          public boolean apply(BinaryCombinator c) {
-            return c instanceof SeqCombinator;
-          }
-        },
+        Predicates.instanceOf(SeqCombinator.class),
         STRING_COALESCING_INFIXER, lvl, out);
   }
 
@@ -190,6 +187,9 @@ final class StringCoalescingInfixer implements BinaryCombinator.Infixer {
     }
   }
 
+  @SuppressFBWarnings(
+      value="BC_UNCONFIRMED_CAST",
+      justification="If case sensitivity is present then operands are chars")
   @Override
   public void visualizeOperand(
       Optional<Combinator> prev, Combinator next,
@@ -202,15 +202,9 @@ final class StringCoalescingInfixer implements BinaryCombinator.Infixer {
       final int cp = leastCodePointOf(csd.codePoints);
       AbstractVisualizable.visualize(
           csd, csd.getVizTypeClassName() + " " + cs, lvl, out,
-          new Visualizable() {
-            @Override
-            public void visualize(DetailLevel ilvl, VizOutput iout)
-            throws IOException {
-              iout.text(
-                  RawCharsInputCursor.STRING_ESCAPER.escape(
-                      new StringBuilder().appendCodePoint(cp).toString()));
-            }
-          });
+          Visualizables.text(
+              RawCharsInputCursor.STRING_ESCAPER.escape(
+                  new StringBuilder().appendCodePoint(cp).toString())));
     } else {
       next.visualize(lvl, out);
     }

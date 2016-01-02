@@ -3,8 +3,6 @@ package com.google.template.autoesc.inp;
 import java.io.IOException;
 import java.util.List;
 
-import javax.annotation.Nullable;
-
 import com.google.common.base.Objects;
 import com.google.template.autoesc.viz.DetailLevel;
 import com.google.template.autoesc.viz.VizOutput;
@@ -126,7 +124,7 @@ public class DecodingInputCursor extends InputCursor {
   }
 
   @Override
-  public boolean equals(@Nullable Object o) {
+  public boolean equals(Object o) {
     if (!(o instanceof DecodingInputCursor)) { return false; }
     DecodingInputCursor that = (DecodingInputCursor) o;
     return this.xform.equals(that.xform) && this.encoded.equals(that.encoded);

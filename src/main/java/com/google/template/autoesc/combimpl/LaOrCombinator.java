@@ -1,7 +1,5 @@
 package com.google.template.autoesc.combimpl;
 
-import javax.annotation.Nullable;
-
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Objects;
@@ -145,7 +143,7 @@ public final class LaOrCombinator extends OrCombinator {
   }
 
   @Override
-  public boolean equals(@Nullable Object o) {
+  public boolean equals(Object o) {
     if (!super.equals(o)) { return false; }
     LaOrCombinator that = (LaOrCombinator) o;
     return this.firstLas.equals(that.firstLas)

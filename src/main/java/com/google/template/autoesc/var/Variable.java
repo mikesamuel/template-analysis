@@ -2,8 +2,6 @@ package com.google.template.autoesc.var;
 
 import java.io.IOException;
 
-import javax.annotation.Nullable;
-
 import com.google.common.base.Objects;
 import com.google.template.autoesc.viz.AbstractVisualizable;
 import com.google.template.autoesc.viz.DetailLevel;
@@ -45,7 +43,7 @@ public class Variable<T> extends AbstractVisualizable {
   }
 
   @Override
-  public boolean equals(@Nullable Object o) {
+  public boolean equals(Object o) {
     if (o == null || o.getClass() != this.getClass()) { return false; }
     Variable<?> that = (Variable<?>) o;
     return this.name.equals(that.name) && this.typeGuard.equals(that.typeGuard);

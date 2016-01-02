@@ -3,14 +3,14 @@ package com.google.template.autoesc.out;
 import java.io.Closeable;
 import java.io.IOException;
 
-import javax.annotation.Nullable;
-
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.template.autoesc.Combinator;
 import com.google.template.autoesc.viz.DetailLevel;
 import com.google.template.autoesc.viz.TagName;
 import com.google.template.autoesc.viz.VizOutput;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 
 /**
@@ -50,6 +50,9 @@ public final class LimitCheck extends BinaryOutput {
     return Optional.absent();
   }
 
+  @SuppressFBWarnings(
+      value="BC_UNCONFIRMED_CAST",
+      justification="getClass() == x.getClass() -> x instanceof ThisClass")
   @Override
   public boolean isOtherSide(BinaryOutput b) {
     return side != b.side && getClass() == b.getClass()
@@ -57,7 +60,7 @@ public final class LimitCheck extends BinaryOutput {
   }
 
   @Override
-  public boolean equals(@Nullable Object o) {
+  public boolean equals(Object o) {
     if (!(o instanceof LimitCheck)) { return false; }
     LimitCheck that = (LimitCheck) o;
     return this.side == that.side && this.limit.equals(that.limit);

@@ -1,12 +1,12 @@
 package com.google.template.autoesc;
 
-import javax.annotation.Nullable;
-
+import java.io.Serializable;
 import com.google.common.base.Preconditions;
 
 
 /** The name of a non-terminal. */
-public final class ProdName implements Comparable<ProdName> {
+public final class ProdName implements Comparable<ProdName>, Serializable {
+  private static final long serialVersionUID = -6031219880309140895L;
   /** A {@link #isIdentifier valid identifier}. */
   public final String text;
 
@@ -27,7 +27,7 @@ public final class ProdName implements Comparable<ProdName> {
   }
 
   @Override
-  public boolean equals(@Nullable Object obj) {
+  public boolean equals(Object obj) {
     if (obj == null || getClass() != obj.getClass()) {
       return false;
     }

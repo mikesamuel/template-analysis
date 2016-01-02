@@ -2,8 +2,6 @@ package com.google.template.autoesc.combimpl;
 
 import java.io.IOException;
 
-import javax.annotation.Nullable;
-
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Supplier;
@@ -80,7 +78,7 @@ public final class AppendOutputCombinator extends AtomicCombinator {
   }
 
   @Override
-  public boolean equals(@Nullable Object o) {
+  public boolean equals(Object o) {
     if (!(o instanceof AppendOutputCombinator)) { return false; }
     AppendOutputCombinator that = (AppendOutputCombinator) o;
     return this.output.equals(that.output);

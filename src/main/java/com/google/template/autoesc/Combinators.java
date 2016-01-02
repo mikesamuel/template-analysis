@@ -29,6 +29,7 @@ import com.google.template.autoesc.var.Scope;
 import com.google.template.autoesc.var.Value;
 import com.google.template.autoesc.var.Variable;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -205,23 +206,7 @@ public class Combinators {
     // for the input "instanceof"
     // will match "in" leaving "stanceof" on the input cursor
     // because or tries in-order.
-    Collections.sort(
-        els,
-        new Comparator<String>() {
-          @Override
-          public int compare(String a, String b) {
-            int delta = a.compareTo(b);
-            if (delta != 0) {
-              // If a is a prefix of b then delta < 0.
-              if (delta < 0) {
-                if (b.startsWith(a)) { delta = 1; }
-              } else {
-                if (a.startsWith(b)) { delta = -1; }
-              }
-            }
-            return delta;
-          }
-        });
+    Collections.sort(els, ComparePrefixesLate.INSTANCE);
     ImmutableList.Builder<Combinator> b = ImmutableList.builder();
     for (String el : els) {
       b.add(lit(el, cs));
@@ -533,4 +518,35 @@ implements Supplier<NodeMetadata> {
         Optional.<String>absent());
   }
 
+}
+
+
+
+final class ComparePrefixesLate implements Comparator<String>, Serializable {
+  private static final long serialVersionUID = -684410366596838688L;
+
+  static final ComparePrefixesLate INSTANCE = new ComparePrefixesLate();
+
+  private ComparePrefixesLate() {}
+
+  @Override
+  public int compare(String a, String b) {
+    int delta = a.compareTo(b);
+    if (delta != 0) {
+      // If a is a prefix of b then delta < 0.
+      if (delta < 0) {
+        if (b.startsWith(a)) { delta = 1; }
+      } else {
+        if (a.startsWith(b)) { delta = -1; }
+      }
+    }
+    // This is a valid ordering because it is equivalent to
+    // compare(a + ULTIMATE, b + ULTIMATE)
+    // where ULTIMIATE is a char whose value is greater than any char
+    // in a or b.
+    // This could be realized by doing a lexicographic sort on a
+    // int[] of length a.length() + 1 derived by filling each element with the
+    // corresponding char value and the last element with 0x10000.
+    return delta;
+  }
 }

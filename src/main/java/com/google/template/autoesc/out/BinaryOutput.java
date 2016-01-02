@@ -1,7 +1,5 @@
 package com.google.template.autoesc.out;
 
-import javax.annotation.Nullable;
-
 import com.google.template.autoesc.viz.AbstractVisualizable;
 
 /**
@@ -29,7 +27,7 @@ extends AbstractVisualizable implements Output {
   public abstract boolean isOtherSide(BinaryOutput b);
 
   @Override
-  public abstract boolean equals(@Nullable Object o);
+  public abstract boolean equals(Object o);
   @Override
   public abstract int hashCode();
 
@@ -39,6 +37,6 @@ extends AbstractVisualizable implements Output {
   public boolean isParseRelevant(PartialOutput po) {
     // Only relevant if open.
     assert (po.getOutput().get() == this);
-    return !((PartialOutput.BoundedRegion) po).right.isPresent();
+    return !po.getRightSideOutput().isPresent();
   }
 }

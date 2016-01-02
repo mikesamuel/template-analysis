@@ -1,7 +1,5 @@
 package com.google.template.autoesc.combimpl;
 
-import javax.annotation.Nullable;
-
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.template.autoesc.Language;
@@ -40,7 +38,7 @@ extends AbstractVisualizable implements Combinator {
   }
 
   @Override
-  public abstract boolean equals(@Nullable Object that);
+  public abstract boolean equals(Object that);
 
   @Override
   public abstract int hashCode();

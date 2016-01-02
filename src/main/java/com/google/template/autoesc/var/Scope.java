@@ -2,7 +2,7 @@ package com.google.template.autoesc.var;
 
 import java.io.IOException;
 
-import javax.annotation.Nullable;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
@@ -54,6 +54,9 @@ public final class Scope extends BinaryOutput implements VariableOutput {
     return var;
   }
 
+  @SuppressFBWarnings(
+      value="BC_UNCONFIRMED_CAST",
+      justification="getClass() == that.getClass() -> that instanceof C")
   @Override
   public boolean isOtherSide(BinaryOutput b) {
     return side != b.side && getClass() == b.getClass()
@@ -61,7 +64,7 @@ public final class Scope extends BinaryOutput implements VariableOutput {
   }
 
   @Override
-  public boolean equals(@Nullable Object o) {
+  public boolean equals(Object o) {
     if (!(o instanceof Scope)) { return false; }
     Scope that = (Scope) o;
     return this.var.equals(that.var) && this.side == that.side;

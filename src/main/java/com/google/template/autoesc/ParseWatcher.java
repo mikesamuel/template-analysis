@@ -1,7 +1,5 @@
 package com.google.template.autoesc;
 
-import javax.annotation.Nullable;
-
 import com.google.template.autoesc.viz.Visualizable;
 
 /**
@@ -84,7 +82,7 @@ public interface ParseWatcher {
    */
   public interface Branch extends Visualizable {
     @Override String toString();
-    @Override boolean equals(@Nullable Object o);
+    @Override boolean equals(Object o);
     @Override int hashCode();
   }
 }

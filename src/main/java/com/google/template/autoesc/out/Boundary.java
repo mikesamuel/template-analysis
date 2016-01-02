@@ -2,13 +2,13 @@ package com.google.template.autoesc.out;
 
 import java.io.IOException;
 
-import javax.annotation.Nullable;
-
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.template.autoesc.ProdName;
 import com.google.template.autoesc.viz.DetailLevel;
 import com.google.template.autoesc.viz.VizOutput;
+
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * A marker for a side of a region that is annotated with the name of the
@@ -30,7 +30,7 @@ public final class Boundary extends BinaryOutput {
   }
 
   @Override
-  public boolean equals(@Nullable Object o) {
+  public boolean equals(Object o) {
     if (!(o instanceof Boundary)) { return false; }
     Boundary that = (Boundary) o;
     return this.side == that.side && this.prodName.equals(that.prodName);
@@ -52,6 +52,9 @@ public final class Boundary extends BinaryOutput {
     out.text(side == Side.LEFT ? prodName.text : "/" + prodName.text);
   }
 
+  @SuppressFBWarnings(
+      value="BC_UNCONFIRMED_CAST",
+      justification="getClass() == x.getClass() -> x instanceof ThisClass")
   @Override
   public boolean isOtherSide(BinaryOutput b) {
     return side != b.side

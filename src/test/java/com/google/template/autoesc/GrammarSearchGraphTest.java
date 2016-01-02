@@ -309,7 +309,8 @@ public final class GrammarSearchGraphTest {
         .withOutput(FList.<Output>of(new StringOutput("ba", "ba")))
         .build();
 
-    if (false) {
+    boolean spammy = false;
+    if (spammy) {
       TextTables.appendTable(
           System.err,
           TextTables.column("b0", branch0.stack),

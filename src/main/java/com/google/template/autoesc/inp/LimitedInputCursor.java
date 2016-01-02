@@ -4,8 +4,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 
-import javax.annotation.Nullable;
-
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.template.autoesc.Completion;
@@ -248,7 +246,7 @@ public final class LimitedInputCursor extends InputCursor {
   }
 
   @Override
-  public boolean equals(@Nullable Object o) {
+  public boolean equals(Object o) {
     if (!(o instanceof LimitedInputCursor)) { return false; }
     LimitedInputCursor that = (LimitedInputCursor) o;
     return this.recognizer.isMatched == that.recognizer.isMatched

@@ -8,8 +8,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.annotation.Nullable;
-
 import com.google.common.collect.HashMultimap;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Multimap;
@@ -185,7 +183,7 @@ public final class BranchRunner<BRANCH extends BranchRunner.Branch<BRANCH>> {
 
     /** Reference identity. */
     @Override
-    public final boolean equals(@Nullable Object o) { return super.equals(o); }
+    public final boolean equals(Object o) { return super.equals(o); }
     /** Reference identity. */
     @Override
     public final int hashCode() { return super.hashCode(); }

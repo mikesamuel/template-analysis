@@ -2,8 +2,6 @@ package com.google.template.autoesc.combimpl;
 
 import java.io.IOException;
 
-import javax.annotation.Nullable;
-
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
@@ -25,7 +23,7 @@ import com.google.template.autoesc.out.LookaheadMarker;
 import com.google.template.autoesc.out.OutputContext;
 import com.google.template.autoesc.viz.AbstractVisualizable;
 import com.google.template.autoesc.viz.DetailLevel;
-import com.google.template.autoesc.viz.Visualizable;
+import com.google.template.autoesc.viz.Visualizables;
 import com.google.template.autoesc.viz.VizOutput;
 
 
@@ -109,7 +107,7 @@ public final class LookaheadCombinator extends UnaryCombinator {
   }
 
   @Override
-  public boolean equals(@Nullable Object o) {
+  public boolean equals(Object o) {
     if (!(o instanceof LookaheadCombinator)) { return false; }
     LookaheadCombinator that = (LookaheadCombinator) o;
     return this.positive == that.positive
@@ -135,13 +133,7 @@ public final class LookaheadCombinator extends UnaryCombinator {
         // Syntactic re-sugaring
         AbstractVisualizable.visualize(
             csd, csd.getVizTypeClassName() + " end-of-input", lvl, out,
-            new Visualizable() {
-              @Override
-              public void visualize(DetailLevel ilvl, VizOutput iout)
-              throws IOException {
-                iout.text("$");
-              }
-            });
+            Visualizables.text("$"));
         return;
       }
     }

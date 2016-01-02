@@ -2,8 +2,6 @@ package com.google.template.autoesc.combimpl;
 
 import java.io.IOException;
 
-import javax.annotation.Nullable;
-
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
@@ -43,24 +41,13 @@ public final class EmbedCombinator extends UnaryCombinator {
       new Function<InputCursor, InputCursor>() {
         @Override
         public InputCursor apply(InputCursor input) {
+          if (input == null) { throw new IllegalArgumentException(); }
           return new DecodingInputCursor(input, xform);
         }
 
         @Override
         public String toString() {
           return "decode(" + xform + ")";
-        }
-      };
-
-  private final Function<InputCursor, InputCursor> unwrap =
-      new Function<InputCursor, InputCursor>() {
-        @Override
-        public InputCursor apply(InputCursor input) {
-          return ((DecodingInputCursor) input).getUndecoded();
-        }
-        @Override
-        public String toString() {
-          return "unwrap";
         }
       };
 
@@ -97,12 +84,12 @@ public final class EmbedCombinator extends UnaryCombinator {
     switch (s) {
       case PASS:
         return ParseDelta.pass()
-            .withInputTransform(unwrap)
+            .withInputTransform(UnembedFunction.INSTANCE)
             .withOutput(new EmbedOutput(Side.RIGHT, xform))
             .build();
       case FAIL:
         return ParseDelta.fail()
-            .withInputTransform(unwrap)
+            .withInputTransform(UnembedFunction.INSTANCE)
             .build();
     }
     throw new AssertionError(s);
@@ -117,17 +104,17 @@ public final class EmbedCombinator extends UnaryCombinator {
         result = ParseDelta.builder(body).push().withInputTransform(wrap);
         break;
       case EXIT_FAIL:
-        result = ParseDelta.fail().withInputTransform(unwrap);
+        result = ParseDelta.fail().withInputTransform(UnembedFunction.INSTANCE);
         break;
       case EXIT_PASS:
-        result = ParseDelta.pass().withInputTransform(unwrap);
+        result = ParseDelta.pass().withInputTransform(UnembedFunction.INSTANCE);
         break;
     }
     return ImmutableList.of(Preconditions.checkNotNull(result).build());
   }
 
   @Override
-  public boolean equals(@Nullable Object o) {
+  public boolean equals(Object o) {
     if (!(o instanceof EmbedCombinator)) {
       return false;
     }
@@ -164,5 +151,25 @@ public final class EmbedCombinator extends UnaryCombinator {
   @Override
   public ImmutableRangeSet<Integer> lookahead(Language lang) {
     return UniRanges.ALL_CODEPOINTS;
+  }
+}
+
+
+final class UnembedFunction implements Function<InputCursor, InputCursor> {
+  static final UnembedFunction INSTANCE = new UnembedFunction();
+
+  private UnembedFunction() {}
+
+  @Override
+  public InputCursor apply(InputCursor input) {
+    // Should only receive the output of wrap above.
+    if (!(input instanceof DecodingInputCursor)) {
+      throw new IllegalArgumentException();
+    }
+    return ((DecodingInputCursor) input).getUndecoded();
+  }
+  @Override
+  public String toString() {
+    return "unwrap";
   }
 }

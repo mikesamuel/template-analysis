@@ -31,7 +31,7 @@ public final class Message {
     if (isError) {
       sb.append("ERROR: ");
     }
-    if (!Source.UNKNOWN.source.equals(source)) {
+    if (!Source.UNKNOWN.source.equals(source.source)) {
       sb.append(source).append(": ");
     }
     sb.append(text);

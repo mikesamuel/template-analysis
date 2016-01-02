@@ -6,8 +6,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import javax.annotation.Nullable;
-
 import com.google.common.base.Objects;
 import com.google.template.autoesc.viz.AbstractVisualizable;
 import com.google.template.autoesc.viz.DetailLevel;
@@ -139,7 +137,7 @@ extends AbstractVisualizable implements CharSequence {
   }
 
   @Override
-  public boolean equals(@Nullable Object o) {
+  public boolean equals(Object o) {
     if (!(o instanceof TransformedString)) {
       return false;
     }
@@ -163,7 +161,7 @@ extends AbstractVisualizable implements CharSequence {
     try (Closeable c = out.open(TagName.CODE)) {
       out.text(
           "\""
-          + RawCharsInputCursor.STRING_ESCAPER.escape(transformed.toString())
+          + RawCharsInputCursor.STRING_ESCAPER.escape(transformed)
           + "\"");
     }
   }

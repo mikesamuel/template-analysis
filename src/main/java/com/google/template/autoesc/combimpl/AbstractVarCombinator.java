@@ -3,8 +3,6 @@ package com.google.template.autoesc.combimpl;
 import java.io.IOException;
 import java.util.EnumSet;
 
-import javax.annotation.Nullable;
-
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.base.Supplier;
@@ -93,7 +91,7 @@ public abstract class AbstractVarCombinator<T> extends AtomicCombinator {
   protected abstract boolean checkValue(T value);
 
   @Override
-  public final boolean equals(@Nullable Object o) {
+  public final boolean equals(Object o) {
     if (o == null || o.getClass() != getClass()) { return false; }
     AbstractVarCombinator<?> that = (AbstractVarCombinator<?>) o;
     return this.var.equals(that.var) && this.vals.equals(that.vals);

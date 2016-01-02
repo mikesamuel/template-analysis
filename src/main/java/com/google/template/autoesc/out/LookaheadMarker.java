@@ -2,8 +2,6 @@ package com.google.template.autoesc.out;
 
 import java.io.IOException;
 
-import javax.annotation.Nullable;
-
 import com.google.common.base.Preconditions;
 import com.google.template.autoesc.viz.DetailLevel;
 import com.google.template.autoesc.viz.VizOutput;
@@ -20,7 +18,7 @@ public final class LookaheadMarker extends EphemeralOutput {
   public static final LookaheadMarker INSTANCE = new LookaheadMarker();
 
   @Override
-  public boolean equals(@Nullable Object o) {
+  public boolean equals(Object o) {
     return o != null && o.getClass() == getClass();
   }
 

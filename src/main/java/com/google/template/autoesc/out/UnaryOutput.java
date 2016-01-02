@@ -1,7 +1,5 @@
 package com.google.template.autoesc.out;
 
-import javax.annotation.Nullable;
-
 import com.google.template.autoesc.viz.AbstractVisualizable;
 
 
@@ -44,7 +42,7 @@ extends AbstractVisualizable implements Output, Comparable<UnaryOutput> {
   }
 
   @Override
-  public abstract boolean equals(@Nullable Object o);
+  public abstract boolean equals(Object o);
   @Override
   public abstract int hashCode();
 }

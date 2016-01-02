@@ -11,5 +11,5 @@ public interface TypeGuard<T> {
   /** A diagnostic description of the type. */
   String getTypeName();
   @Override int hashCode();
-  @Override boolean equals(@Nullable Object o);
+  @Override boolean equals(Object o);
 }

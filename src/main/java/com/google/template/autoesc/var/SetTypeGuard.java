@@ -1,7 +1,5 @@
 package com.google.template.autoesc.var;
 
-import javax.annotation.Nullable;
-
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableSet;
@@ -39,7 +37,7 @@ implements TypeGuard<ImmutableSet<T>> {
   }
 
   @Override
-  public boolean equals(@Nullable Object o) {
+  public boolean equals(Object o) {
     if (!(o instanceof SetTypeGuard<?>)) { return false; }
     SetTypeGuard<?> that = (SetTypeGuard<?>) o;
     return this.elementGuard.equals(that.elementGuard);

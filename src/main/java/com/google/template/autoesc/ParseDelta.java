@@ -174,6 +174,7 @@ public final class ParseDelta {
     return new Function<FList<Output>, FList<Output>>() {
       @Override
       public FList<Output> apply(FList<Output> outputs) {
+        if (outputs == null) { throw new IllegalArgumentException(); }
         return FList.cons(output, outputs);
       }
 

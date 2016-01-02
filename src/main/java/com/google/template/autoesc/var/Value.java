@@ -2,8 +2,6 @@ package com.google.template.autoesc.var;
 
 import java.io.IOException;
 
-import javax.annotation.Nullable;
-
 import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -90,7 +88,7 @@ public final class Value<T> extends UnaryOutput implements VariableOutput {
   }
 
   @Override
-  public boolean equals(@Nullable Object o) {
+  public boolean equals(Object o) {
     if (!(o instanceof Value)) { return false; }
     Value<?> that = (Value<?>) o;
     return this.var.equals(that.var) && Objects.equal(this.val, that.val);

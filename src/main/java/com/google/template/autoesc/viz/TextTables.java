@@ -34,6 +34,7 @@ public final class TextTables {
       new Function<Visualizable, String> () {
     @Override
     public String apply(Visualizable v) {
+      if (v == null) { throw new IllegalArgumentException(); }
       StringBuilder sb = new StringBuilder();
       TextVizOutput vizOut = new TextVizOutput(sb);
       try {

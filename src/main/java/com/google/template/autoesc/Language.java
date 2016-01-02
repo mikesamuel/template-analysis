@@ -13,7 +13,7 @@ import com.google.common.base.Functions;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -53,18 +53,7 @@ public final class Language {
       Optional<String> demoServerQuery) {
     Preconditions.checkArgument(defsByName.containsKey(defaultStartProdName));
 
-    final Function<NodeMetadata, NodeMetadata> mapMeta =
-        new Function<NodeMetadata, NodeMetadata>() {
-          private int indexCounter = 1;
-
-          @Override
-          public NodeMetadata apply(NodeMetadata md) {
-            int index = indexCounter;
-            Preconditions.checkState(index >= 0, "underflow");
-            ++indexCounter;
-            return new NodeMetadata(md.source, index, md.docComment);
-          }
-    };
+    SerialNumberer mapMeta = new SerialNumberer();
 
     ImmutableMap<ProdName, Production> resolvedProds;
     {
@@ -73,12 +62,8 @@ public final class Language {
         ProdName name = e.getKey();
         Combinator body = e.getValue().toCombinator(mapMeta);
         final NodeMetadata bodyMd = body.getMetadata();
-        Combinators c = Combinators.using(new Supplier<NodeMetadata>() {
-          @Override
-          public NodeMetadata get() {
-            return mapMeta.apply(bodyMd);
-          }
-        });
+        Combinators c = Combinators.using(
+            Suppliers.compose(mapMeta, Suppliers.ofInstance(bodyMd)));
         b.put(name, new Production(name, body, c));
       }
       resolvedProds = b.build();
@@ -354,6 +339,7 @@ final class Production {
 
     @Override
     public Combinator apply(Production p) {
+      if (p == null) { throw new IllegalArgumentException(); }
       return p.body;
     }
 
@@ -375,21 +361,10 @@ final class Def {
     this.prefixOpt = Optional.absent();
   }
 
-  int indexCounter = 0;
-
   Combinator toCombinator(Function<NodeMetadata, NodeMetadata> mapMeta) {
     Function<ProdName, ProdName> mapName = Functions.identity();
     if (prefixOpt.isPresent()) {
-      final ProdName prefix = prefixOpt.get();
-      mapName = new Function<ProdName, ProdName>() {
-        @Override
-        public ProdName apply(ProdName name) {
-          if (name.text.indexOf('.') < 0) {
-            return name.withPrefix(prefix);
-          }
-          return name;
-        }
-      };
+      mapName = new PrefixIfNoDot(prefixOpt.get());
     }
     return mapCombinatorDeep(mapMeta, mapName, c);
   }
@@ -425,5 +400,36 @@ final class Def {
     }
 
     return c.unfold(newMetadata, mapName, newChildren);
+  }
+}
+
+
+final class PrefixIfNoDot implements Function<ProdName, ProdName> {
+  final ProdName prefix;
+
+  PrefixIfNoDot(ProdName prefix) {
+    this.prefix = prefix;
+  }
+
+  @Override
+  public ProdName apply(ProdName name) {
+    if (name != null && name.text.indexOf('.') < 0) {
+      return name.withPrefix(prefix);
+    }
+    return name;
+  }
+}
+
+
+final class SerialNumberer implements Function<NodeMetadata, NodeMetadata> {
+  private int indexCounter = 1;
+
+  @Override
+  public NodeMetadata apply(NodeMetadata md) {
+    if (md == null) { throw new IllegalArgumentException(); }
+    int index = indexCounter;
+    Preconditions.checkState(index >= 0, "underflow");
+    ++indexCounter;
+    return new NodeMetadata(md.source, index, md.docComment);
   }
 }

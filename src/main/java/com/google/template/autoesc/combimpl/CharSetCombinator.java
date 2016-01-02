@@ -3,8 +3,6 @@ package com.google.template.autoesc.combimpl;
 import java.io.Closeable;
 import java.io.IOException;
 
-import javax.annotation.Nullable;
-
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -242,7 +240,7 @@ public final class CharSetCombinator extends AtomicCombinator {
   }
 
   @Override
-  public boolean equals(@Nullable Object o) {
+  public boolean equals(Object o) {
     if (!(o instanceof CharSetCombinator)) { return false; }
     CharSetCombinator that = (CharSetCombinator) o;
     return this.codePoints.equals(that.codePoints);

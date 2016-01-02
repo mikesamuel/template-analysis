@@ -29,7 +29,7 @@ public final class RawTypeGuard<T> implements TypeGuard<T> {
     return typeToken.getSimpleName();
   }
   @Override
-  public boolean equals(@Nullable Object o) {
+  public boolean equals(Object o) {
     if (!(o instanceof RawTypeGuard)) { return false; }
     RawTypeGuard<?> that = (RawTypeGuard<?>) o;
     return this.typeToken.equals(that.typeToken);

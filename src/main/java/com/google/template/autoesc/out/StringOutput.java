@@ -3,8 +3,6 @@ package com.google.template.autoesc.out;
 import java.io.Closeable;
 import java.io.IOException;
 
-import javax.annotation.Nullable;
-
 import com.google.common.base.Optional;
 import com.google.template.autoesc.inp.InputCursor;
 import com.google.template.autoesc.inp.RawCharsInputCursor;
@@ -65,7 +63,7 @@ public final class StringOutput extends UnaryOutput {
   }
 
   @Override
-  public boolean equals(@Nullable Object o) {
+  public boolean equals(Object o) {
     if (!(o instanceof StringOutput)) { return false; }
     StringOutput that = (StringOutput) o;
     return this.s.equals(that.s);

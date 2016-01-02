@@ -25,6 +25,7 @@ import com.google.template.autoesc.out.PartialOutput.StandalonePartialOutput;
 import com.google.template.autoesc.out.StringOutput;
 import com.google.template.autoesc.out.UnaryOutput;
 import com.google.template.autoesc.var.MultiVariable;
+import com.google.template.autoesc.var.Variable;
 import com.google.template.autoesc.var.Value;
 import com.google.template.autoesc.viz.DetailLevel;
 import com.google.template.autoesc.viz.TextTables;
@@ -76,6 +77,7 @@ final class Reconciliation {
             new Function<Parse, LinkedList<Output>>() {
               @Override
               public LinkedList<Output> apply(Parse p) {
+                if (p == null) { throw new IllegalArgumentException(); }
                 return new LinkedList<>(filterOutput(p.out).toList());
               }
             })
@@ -241,7 +243,7 @@ final class Reconciliation {
           new OutputReconciliationStrategy() {
             @Override
             public boolean reconcilesWith(Output prior, Output current) {
-              return current instanceof Value
+              return current instanceof Value && prior instanceof Value
                   && ((Value<?>) current).getVariable().equals(
                       ((Value<?>) prior).getVariable());
             }
@@ -250,15 +252,18 @@ final class Reconciliation {
                 Parse p, Optional<Output> prior, Parse q, Output current) {
               if (prior.isPresent()) {
                 Value<?> x = (Value<?>) prior.get();
-                MultiVariable<?> var = (MultiVariable<?>) x.getVariable();
-                if (current instanceof Value) {
-                  Value<?> y = (Value<?>) current;
-                  if (var.equals(y.getVariable())) {
-                    // Intersect.
-                    return Optional.<Output>of(var.intersection(x, y));
+                Variable<?> var = x.getVariable();
+                if (var instanceof MultiVariable) {
+                  MultiVariable<?> multivar = (MultiVariable<?>) var;
+                  if (current instanceof Value) {
+                    Value<?> y = (Value<?>) current;
+                    if (var.equals(y.getVariable())) {
+                      // Intersect.
+                      return Optional.<Output>of(multivar.intersection(x, y));
+                    }
+                  } else {
+                    return Optional.<Output>of(multivar.emptyValue());
                   }
-                } else {
-                  return Optional.<Output>of(var.emptyValue());
                 }
                 return prior;
               }

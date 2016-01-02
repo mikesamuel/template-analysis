@@ -2,8 +2,6 @@ package com.google.template.autoesc.combimpl;
 
 import java.io.IOException;
 
-import javax.annotation.Nullable;
-
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableRangeSet;
 import com.google.template.autoesc.Language;
@@ -44,7 +42,7 @@ public final class ErrorCombinator extends SingletonCombinator {
   }
 
   @Override
-  public boolean equals(@Nullable Object that) {
+  public boolean equals(Object that) {
     return that instanceof ErrorCombinator;
   }
 
