@@ -179,13 +179,16 @@ final class Reconciliation {
           }
         }
 
-        Collections.sort(reorderable, new Comparator<StandalonePartialOutput>() {
-          @Override
-          public int compare(
-              StandalonePartialOutput a, StandalonePartialOutput b) {
-            return ((UnaryOutput) a.output).compareTo((UnaryOutput) b.output);
-          }
-        });
+        Collections.sort(
+            reorderable,
+            new Comparator<StandalonePartialOutput>() {
+              @Override
+              public int compare(
+                  StandalonePartialOutput a, StandalonePartialOutput b) {
+                return ((UnaryOutput) a.output).compareTo(
+                    (UnaryOutput) b.output);
+              }
+            });
 
         return ImmutableList.<PartialOutput>builder()
             .addAll(reorderable)

@@ -737,8 +737,8 @@ final class GrammarSearchGraph {
             break;
           case EXIT_PASS:
           case EXIT_FAIL:
-            ImmutableList<ParseDelta> deltas = bestMatch.key.c.epsilonTransition(
-                tt, lang, joinState);
+            ImmutableList<ParseDelta> deltas =
+                bestMatch.key.c.epsilonTransition(tt, lang, joinState);
             Preconditions.checkState(deltas.size() == 1);
             ParseDelta delta = deltas.get(0);
             ParseDelta.IOTransform xform = delta.ioTransform;

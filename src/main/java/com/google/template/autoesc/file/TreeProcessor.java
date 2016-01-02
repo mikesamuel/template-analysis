@@ -72,7 +72,8 @@ final class TreeProcessor {
    * As variables are defined in a parse unit, we keep a relation between
    * names and types so that authors need not
    */
-  private final Map<String, Variable<?>> previouslyDeclaredVariables = new LinkedHashMap<>();
+  private final Map<String, Variable<?>> previouslyDeclaredVariables =
+    new LinkedHashMap<>();
 
 
   TreeProcessor(LineMap lineMap, Types types) {
@@ -119,7 +120,8 @@ final class TreeProcessor {
   }
 
   Optional<Variable<?>> getPreviouslyDeclaredVariable(String name) {
-    return Optional.<Variable<?>>fromNullable(previouslyDeclaredVariables.get(name));
+    return Optional.<Variable<?>>fromNullable(
+        previouslyDeclaredVariables.get(name));
   }
 
   void defineProductions(Language.Builder b) {

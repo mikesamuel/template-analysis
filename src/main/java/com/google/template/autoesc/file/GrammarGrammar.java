@@ -254,7 +254,8 @@ public final class GrammarGrammar {
             ),
         new OutputProcessor<Production>() {
           @Override
-          Optional<Production> post(ImmutableList<Object> children, TreeProcessor t) {
+          Optional<Production> post(
+              ImmutableList<Object> children, TreeProcessor t) {
             Preconditions.checkArgument(children.size() == 2);
             return Optional.of(
                 new Production(
@@ -368,7 +369,8 @@ public final class GrammarGrammar {
         c.invChars('"', '\\', '\n', '\r', '\u201d'),
         new StringOutputProcessor<Integer>() {
           @Override
-          Optional<Integer> process(String s, String rawChars, TreeProcessor t) {
+          Optional<Integer> process(
+              String s, String rawChars, TreeProcessor t) {
             return Optional.of(Integer.valueOf(s.codePointAt(0)));
           }
         });
@@ -385,7 +387,8 @@ public final class GrammarGrammar {
         // TODO: should \0 followed by an octal digit be disallowed?
         new StringOutputProcessor<Integer>() {
           @Override
-          Optional<Integer> process(String s, String rawChars, TreeProcessor t) {
+          Optional<Integer> process(
+              String s, String rawChars, TreeProcessor t) {
             int cp;
             switch (s.charAt(1)) {
               case 'U':
@@ -741,7 +744,8 @@ public final class GrammarGrammar {
             switch (operator) {
               case HAS:
                 if (var instanceof MultiVariable) {
-                  test = typeSafeMultivarTest(t, (MultiVariable<?>) var, valueCoerced);
+                  test = typeSafeMultivarTest(
+                      t, (MultiVariable<?>) var, valueCoerced);
                 } else {
                   t.error("Set membership can only be tested for multi-vars");
                   test = Combinators.error();
@@ -897,7 +901,8 @@ public final class GrammarGrammar {
         c.invChars('-', '^', ']', '\\', '\r', '\n'),
         new StringOutputProcessor<Integer>() {
           @Override
-          Optional<Integer> process(String s, String rawChars, TreeProcessor t) {
+          Optional<Integer> process(
+              String s, String rawChars, TreeProcessor t) {
             return Optional.of(Integer.valueOf(s.codePointAt(0)));
           }
         });
