@@ -3,6 +3,7 @@ package com.google.template.autoesc;
 import java.io.IOException;
 
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.google.common.base.Optional;
@@ -308,18 +309,20 @@ public final class GrammarSearchGraphTest {
         .withOutput(FList.<Output>of(new StringOutput("ba", "ba")))
         .build();
 
-    TextTables.appendTable(
-        System.err,
-        TextTables.column("b0", branch0.stack),
-        TextTables.column("b1", branch1.stack),
-        TextTables.column("j0", joined0.stack),
-        TextTables.column("j1", joined1.stack));
-    TextTables.appendTable(
-        System.err,
-        TextTables.column("b0", branch0.out),
-        TextTables.column("b1", branch1.out),
-        TextTables.column("j0", joined0.out),
-        TextTables.column("j1", joined1.out));
+    if (false) {
+      TextTables.appendTable(
+          System.err,
+          TextTables.column("b0", branch0.stack),
+          TextTables.column("b1", branch1.stack),
+          TextTables.column("j0", joined0.stack),
+          TextTables.column("j1", joined1.stack));
+      TextTables.appendTable(
+          System.err,
+          TextTables.column("b0", branch0.out),
+          TextTables.column("b1", branch1.out),
+          TextTables.column("j0", joined0.out),
+          TextTables.column("j1", joined1.out));
+    }
 
     assertJoinStates(
         branch0, branch1,
@@ -404,6 +407,7 @@ public final class GrammarSearchGraphTest {
         joined0, joined1);
   }
 
+  @Ignore
   @Test
   public void testNegativeLookaheadFromFailedOutOfBranches() {
     throw new AssertionError("TODO");
