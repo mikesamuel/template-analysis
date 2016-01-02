@@ -9,7 +9,7 @@ structure of the strings produced by the template.
 For an HTML template:
 
 <pre>
-Hello, &lt;a href="<u>{$world}</u>"&gt;World&lt;/a&gt;!
+Hello, &lt;a href="<b>{$world}</b>"&gt;World&lt;/a&gt;!
 </pre>
 
 The parser might get two chunks of input:
