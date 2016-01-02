@@ -21,16 +21,16 @@ and provide an annotated output like
 
  * String: `"Hello, "`
  * Tag:
-    * String: `"<a "`
-    * Attribute : 
-      * String: `"href=\""`
-      * Embedded URL
-      * Template Hole
-      * String: `"\""`
-    * String: `">"`
+   * String: `"<a "`
+   * Attribute
+     * String: `"href=\""`
+     * Embedded URL
+       * Template Hole
+     * String: `"\""`
+   * String: `">"`
  * String: `"World"`
  * Tag:
-    * String: `"</a>"`
+   * String: `"</a>"`
  * String: `"!"`
 
 This structure provides enough information to decide how to safely
