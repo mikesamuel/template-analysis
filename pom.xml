@@ -88,6 +88,7 @@
           <effort>Max</effort>
           <!-- Reports all bugs (other values are medium and max) -->
           <threshold>Low</threshold>
+          <excludeFilterFile>findbugs-exclude.xml</excludeFilterFile>
         </configuration>
         <executions>
           <!--

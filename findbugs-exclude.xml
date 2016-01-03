@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+  <Match>
+    <!-- This seems to trigger every time code does
+         x + ".foo", not just on +=.
+         The alternative doesn't save any cycles
+         and is far less readable. -->
+    <Bug pattern="DM_STRING_CTOR"/>
+  </Match>
+</FindBugsFilter>
