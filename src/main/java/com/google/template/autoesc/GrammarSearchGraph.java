@@ -789,8 +789,8 @@ final class GrammarSearchGraph {
             break;
           case EXIT_PASS:
           case EXIT_FAIL:
-            joinState = joinState.pop();
-            if (!joinState.stack.isEmpty()) {
+            if (!joinState.stack.tl().isEmpty()) {
+              joinState = joinState.pop();
               ImmutableList<ParseDelta> deltas = joinState.stack.hd()
                   .epsilonTransition(tt, lang, joinState);
               if (deltas.size() == 1) {
