@@ -30,7 +30,7 @@ public final class ParseDelta {
 
   @Override
   public String toString() {
-    return "{ParseDelta d=" + c
+    return "{ParseDelta c=" + c
         + (ioTransform instanceof IdentityIOTransform
            ? "" : ", ioXform=" + ioTransform)
         + (push ? ", push" : "")
@@ -169,22 +169,6 @@ public final class ParseDelta {
       return new ParseDelta(c, ioTransform, push);
     }
   }
-
-  static Function<FList<Output>, FList<Output>> append(final Output output) {
-    return new Function<FList<Output>, FList<Output>>() {
-      @Override
-      public FList<Output> apply(FList<Output> outputs) {
-        if (outputs == null) { throw new IllegalArgumentException(); }
-        return FList.cons(output, outputs);
-      }
-
-      @Override
-      public String toString() {
-        return "append(" + output + ")";
-      }
-    };
-  }
-
 
   /**
    * Converts input and output.
@@ -357,7 +341,7 @@ final class AdvanceCursorIOTransform implements ParseDelta.IOTransform {
           .toString(),
           input.getRawChars(nChars).toString());
       this.transformedCursor = input.advance(nChars);
-      this.transformedOutput = FList.cons(chars, output);
+      this.transformedOutput = Parse.consOutput(chars, output);
     }
   }
 
