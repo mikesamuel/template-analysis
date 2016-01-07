@@ -4,6 +4,69 @@ A pausable parser that consumes template text
 and provides annotations that make clear the
 structure of the strings produced by the template.
 
+## Problem
+
+Network messages sent by web applications are often composed from
+untrustworthy inputs leading to security vulnerabilities like XSS, SQL
+Injection, Shell injection, etc.
+
+Tools like HTML template languages would benefit from an understanding
+of the structure of the messages they produce.
+
+For example, it is obvious to a human reader that the HTML template
+
+```HTML
+<p>{$text}</p>
+```
+
+is meant to specify a paragraph tag containing text specified by the expression
+`$text`.
+
+This is not necessarily the case, for example when `$text` is
+
+```HTML
+<script>alert(1337)</script>
+```
+
+and, because of the way languages nest, can execute attacker-specified
+code with the permissions of the server's origin.
+
+Template languages can make explicit the structure of the code
+(e.g. XHP) and take steps to ensure that the author's apparent intent
+is preserved even in the face of inputs controlled by an attacker.
+
+This complicates the template language, ties it to a particular output
+language, and makes it difficult to port common template patterns like
+
+```HTML
+# main.template
+{import header}
+
+<p>{$text</p>
+
+{import footer}
+
+# header.template
+<html><head>...</head><body>
+
+# footer.template
+</body></html>
+```
+
+where an element crosses compilation units.
+
+This library fills this gap by providing
+1. a grammar-based approach to describing network message languages
+2. operators for handling language nesting
+3. a parser that can be paused at a hole in the input
+4. a way to parse states can be forked and joined based on a template's control-flow
+5. a way to represent the parse of an unbalanced portion of an input
+
+This could prove of value to
+1. Auto-escaping template languages.
+2. Linters that identify common errors in templates.
+3. Automated refactoring.
+
 ## Example
 
 For an HTML template:
