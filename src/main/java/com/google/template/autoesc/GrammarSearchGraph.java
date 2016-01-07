@@ -26,14 +26,16 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Table;
 import com.google.template.autoesc.ParseWatcher.Branch;
-import com.google.template.autoesc.combimpl.EmptyCombinator;
-import com.google.template.autoesc.combimpl.ErrorCombinator;
+import com.google.template.autoesc.combimpl.LookaheadCombinator;
+import com.google.template.autoesc.combimpl.LoopCombinator;
 import com.google.template.autoesc.combimpl.OrCombinator;
 import com.google.template.autoesc.combimpl.ReferenceCombinator;
 import com.google.template.autoesc.combimpl.SeqCombinator;
 import com.google.template.autoesc.combimpl.SingletonCombinator;
-import com.google.template.autoesc.inp.InputCursor;
 import com.google.template.autoesc.out.BranchMarker;
+import com.google.template.autoesc.out.EphemeralOutput;
+import com.google.template.autoesc.out.LookaheadMarker;
+import com.google.template.autoesc.out.LoopMarker;
 import com.google.template.autoesc.out.Output;
 import com.google.template.autoesc.out.OutputContext;
 import com.google.template.autoesc.out.PartialOutput;
@@ -143,6 +145,7 @@ import static com.google.template.autoesc.viz.TextTables.column;
 final class GrammarSearchGraph {
 
   static final boolean DEBUG = false;
+  static final boolean DEBUG_BEST_JOIN = DEBUG || false;
 
   private static FList<ProdName> prodNameChainOf(FList<Combinator> stack) {
     return stack.mapFiltered(
@@ -167,8 +170,7 @@ final class GrammarSearchGraph {
       Preconditions.checkArgument(
           c instanceof SingletonCombinator
           || c.getMetadata().nodeIndex > 0,
-          "Nodes not assigned unique indices"
-          );
+          "Nodes not assigned unique indices");
 
       this.chain = chain;
       this.c = c;
@@ -199,15 +201,13 @@ final class GrammarSearchGraph {
    * A delta between two parse states.
    */
   private static final class Node {
-    final NodeKey key;
     private final List<Optional<SearchStep>> reaching = new ArrayList<>();
     /** The number of present elements of reaching. */
     private int nReaching;
     /** The max of the nRollbacks of present elements of reaching. */
     private int maxNRollbacks;
 
-    Node(NodeKey key) {
-      this.key = key;
+    Node() {
     }
 
     boolean reachesViaBetterPath(int branchIndex, SearchStep step) {
@@ -318,7 +318,7 @@ final class GrammarSearchGraph {
       return "{Step " + key + ", " + p + "}";
     }
 
-    /** a < b when a is a better early search step than b. */
+    /** {@code a < b} when a is a better early search step than b. */
     @Override
     public int compareTo(SearchStep step) {
       int delta;
@@ -329,12 +329,13 @@ final class GrammarSearchGraph {
         delta = Integer.compare(
             this.distanceFromBranchEnd, step.distanceFromBranchEnd);
       }
-      // Prefer passing.
+      // Prefer not failing.
       if (delta == 0) {
+        TransitionType tt = key.t;
         delta = Integer.compare(
-            (this.key.t == TransitionType.EXIT_FAIL
+            (tt == TransitionType.EXIT_FAIL
             ? 1 : 0),
-            (step.key.t == TransitionType.EXIT_FAIL
+            (tt == TransitionType.EXIT_FAIL
             ? 1 : 0)
             );
       }
@@ -431,6 +432,7 @@ final class GrammarSearchGraph {
   private final PriorityQueue<SearchStep> periphery = new PriorityQueue<>();
   private final Map<NodeKey, Node> nodes = new LinkedHashMap<>();
   private Node bestMatch = null;
+  private NodeKey bestMatchKey = null;
   final ImmutableList<Branch> branchNames;
   final ImmutableList<Parse> branchEndStates;
   final Language lang;
@@ -469,8 +471,12 @@ final class GrammarSearchGraph {
   private Node getNode(NodeKey key) {
     Node node = nodes.get(key);
     if (node == null) {
-      node = new Node(key);
+      node = new Node();
       nodes.put(key, node);
+    } else {
+      if (DEBUG) {
+        System.out.println("Resusing node for key " + key);
+      }
     }
     return node;
   }
@@ -493,6 +499,7 @@ final class GrammarSearchGraph {
     final int nBranches = branchEndStates.size();
     for (int branchIndex = 0; branchIndex < nBranches; ++branchIndex) {
       Parse unfilteredBranchEndState = branchEndStates.get(branchIndex);
+      checkParseStateValid(unfilteredBranchEndState);
       Parse branchEndState = filterOrsThatPushbackContentOnFailure(
           unfilteredBranchEndState);
       if (!branchEndState.stack.isEmpty()) {
@@ -500,30 +507,27 @@ final class GrammarSearchGraph {
         // We get the prod name before unpausing because the name of any
         // reference being entered should not be on the startNameChain.
         // Not until we enter the referent's body.
-        Combinator resumedHd = Pause.resume(branchEndState.stack.hd());
-        branchEndState = branchEndState.builder()
-            // Like the parser, we pop the hd and operate on a stack consisting
-            // of the tl.
-            .withStack(branchEndState.stack.tl())
-            .build();
+        branchEndState = branchEndState.resume();
+        Combinator resumedHd = branchEndState.stack.hd();
         if (DEBUG) {
           System.out.println("\nbranchIndex=" + branchIndex);
           TextTables.appendTable(
               System.out,
               column("unfiltered stack", unfilteredBranchEndState.stack),
-              column("hd::filtered",
-                  FList.cons(resumedHd, branchEndState.stack)));
+              column("filtered", branchEndState.stack));
         }
         NodeKey startNodeKey = new NodeKey(
             startNameChain, resumedHd,
             // Entering a paused node enters the head.
             TransitionType.ENTER);
+        checkParseStateValid(branchEndState);
         periphery.add(new SearchStep(
             branchIndex, startNodeKey, branchEndState, 0,
             FList.<SearchStep>empty()));
       }
     }
 
+    int roundNum = 0;
     while (!MatchComparator.isBestPossible(bestMatch, branchEndStates.size())) {
       if (DEBUG) {
         int i = 0;
@@ -534,6 +538,7 @@ final class GrammarSearchGraph {
               + "#" + step.branchIndex);
           System.out.println("\tdistanceFromEnd=" + step.distanceFromBranchEnd);
           System.out.println("\tnRollbacks=" + step.nRollbacks);
+          System.out.println("\tcallChain=" + step.key.chain);
           ++i;
         }
       }
@@ -544,8 +549,9 @@ final class GrammarSearchGraph {
       final int branchIndex = step.branchIndex;
       if (DEBUG) {
         System.out.println(
-            "\n\nPERIPHERY ROUND branch=" + branchNames.get(branchIndex)
+            "\n\nPERIPHERY ROUND " + roundNum + " branch=" + branchNames.get(branchIndex)
             + ":" + branchIndex);
+        ++roundNum;
         TextTables.appendTable(
             System.out,
             column("stack", step.p.stack),
@@ -557,24 +563,60 @@ final class GrammarSearchGraph {
       }
       node.setReaching(branchIndex, step);
       if (MatchComparator.INSTANCE.compare(bestMatch, node) < 0) {
+        if (DEBUG_BEST_JOIN) {
+          System.out.println(
+              "Better match\n\t" + step.key + "\n\treached via " + step
+              + (bestMatch != null
+                 ? "\n\tis better than " + bestMatchKey
+                 : ""));
+        }
         bestMatch = node;
+        bestMatchKey = step.key;
       }
       OutputContext ctx = new OutputContext.ListOutputContext(step.p.out);
 
-      EnumSet<TransitionType> tts = EnumSet.of(node.key.t);
-      Combinator keyD = node.key.c;
-      FList<Combinator> stack = step.p.stack;
-      if (node.key.c instanceof ReferenceCombinator) {
-        switch (node.key.t) {
+      Parse p = step.p;
+      TransitionType stepTT = TransitionType.of(p.stack.hd());
+      Combinator c = p.stack.hd();
+      switch (stepTT) {
+      case ENTER:
+        break;
+      case EXIT_PASS: case EXIT_FAIL:
+        FList<Combinator> tl = p.stack.tl();
+        if (tl.isEmpty()) {
+          // We've reached a fixed point since the stacks consisting of only
+          // 1. the Empty combinator : ( "" )
+          // 2. the Error combinator : ( [] )
+          // transition to themselves.  In the parser, this is handled by
+          // checking the Completion.
+          // Here, we short-circuit since there is no edge out of one of those
+          // nodes.
+          continue;
+        }
+        p = p.pop();
+        c = p.stack.hd();
+        break;
+      }
+
+      boolean glossingOverReference = false;
+      EnumSet<TransitionType> tts = EnumSet.of(stepTT);
+
+      if (c instanceof ReferenceCombinator) {
+        switch (stepTT) {
           case ENTER:
             // Maybe gloss over, depending on whether the reference is
             // entered and whether it enters a prefix of a branch stack.
-            ReferenceCombinator rd = (ReferenceCombinator) node.key.c;
+            ReferenceCombinator rc = (ReferenceCombinator) c;
             FList<ProdName> referentChain = FList.cons(
-                rd.name, node.key.chain);
+                rc.name, step.key.chain);
+            if (DEBUG) {
+              System.out.println(
+                  "Checking referentChain " + referentChain
+                  + " against nonTerminalsToEnter " + nonTerminalsToEnter);
+            }
             if (!nonTerminalsToEnter.contains(referentChain)) {
-              // Gloss over.
-              switch (lang.lali.consumesInput(rd.name)) {
+              glossingOverReference = true;
+              switch (lang.lali.consumesInput(rc.name)) {
                 case ALWAYS:
                   tts = EnumSet.of(TransitionType.EXIT_FAIL);
                   break;
@@ -594,31 +636,46 @@ final class GrammarSearchGraph {
       if (DEBUG) {
         System.out.println("\nbranchIndex=" + branchIndex);
       }
+
       for (TransitionType tt : tts) {
         if (DEBUG) {
           System.out.println(
-              "keyD=" + keyD + " : " + keyD.getClass().getSimpleName());
+              "c=" + c + " : " + c.getClass().getSimpleName()
+              + ", tt=" + tt + ", p.stack=" + p.stack);
         }
-        Iterable<ParseDelta> results;
-        if (tt == TransitionType.EXIT_PASS
-            && node.key.t == TransitionType.ENTER) {
-          // We're expanding a reference.
-          final Optional<FList<Output>> expandedOutput = expandReference(
-              (ReferenceCombinator) keyD, step.p.out);
-          if (expandedOutput.isPresent()) {
-            results = ImmutableList.copyOf(Lists.transform(
-                // Grammar.bref() bounded references push a LEFT marker on entry
-                // and a RIGHT on exit.
-                // ENTER instead of EXIT_PASSING so that we get the proper left
-                // marker.
-                keyD.epsilonTransition(TransitionType.ENTER, lang, ctx),
-                new SubstituteExpandedOutput(expandedOutput.get())));
-          } else {
-            results = ImmutableList.of();
+
+        Iterable<ParseDelta> results = null;
+        if (glossingOverReference) {
+
+          // We're glossing over a reference.
+          Preconditions.checkState(c instanceof ReferenceCombinator);
+          Preconditions.checkState(stepTT == TransitionType.ENTER);
+
+          // If we pass or fail out of a glossed-over reference then we
+          // need to pretend that that reference was pushed onto the stack.
+          switch (tt) {
+          case EXIT_PASS:
+            // We're expanding a reference.
+            final Optional<FList<Output>> expandedOutput = expandReference(
+              (ReferenceCombinator) c, step.p.out);
+            if (expandedOutput.isPresent()) {
+              results = ImmutableList.copyOf(Lists.transform(
+                  c.epsilonTransition(TransitionType.EXIT_PASS, lang, ctx),
+                  new SubstituteExpandedOutput(expandedOutput.get())));
+            } else {
+              results = ImmutableList.of();
+            }
+            break;
+          case EXIT_FAIL:
+            break;
+          case ENTER:
+            throw new AssertionError();
           }
-        } else {
-          results = keyD.epsilonTransition(tt, lang, ctx);
         }
+        if (results == null) {
+          results = c.epsilonTransition(tt, lang, ctx);
+        }
+
         for (ParseDelta result : results) {
           if (DEBUG) {
             System.out.println("index=" + step.branchIndex
@@ -626,44 +683,17 @@ final class GrammarSearchGraph {
                 + "\n\tresult=" + result + ", tt=" + tt);
           }
 
-          TransitionType nextTT;
-          Combinator nextD;
-          FList<Combinator> nextStack;
-          if (result.c instanceof EmptyCombinator) {
-            if (stack.isEmpty()) {
-              nextD = result.c;
-              nextStack = stack;
-              nextTT = TransitionType.ENTER;
-            } else {
-              nextTT = TransitionType.EXIT_PASS;
-              nextD = stack.hd();
-              nextStack = stack.tl();
-            }
-          } else if (result.c instanceof ErrorCombinator) {
-            nextTT = TransitionType.EXIT_FAIL;
-            if (stack.isEmpty()) {
-              // It's almost always possible to join by failing out fast, but
-              // that is rarely what we want to do, so we simply don't
-              // allow an edge to ultimate failure.
-              continue;
-            }
-            nextD = stack.hd();
-            nextStack = stack.tl();
-          } else {
-            nextTT = TransitionType.ENTER;
-            nextD = result.c;
-            nextStack = stack;
-          }
+          TransitionType nextTT = TransitionType.of(result.c);
+          Parse nextParse = p.apply(result);
 
-          if (result.push) {
-            nextStack = FList.cons(node.key.c, nextStack);
-          }
-
-          result.ioTransform.apply(step.p.inp, step.p.out);
-          InputCursor nextInp = result.ioTransform.getTransformedCursor();
-          FList<Output> nextOut = result.ioTransform.getTransformedOutput();
-          FList<ProdName> nextChain = prodNameChainOf(nextStack);
-          if (!nextInp.isEmpty()) {
+          FList<ProdName> nextChain = prodNameChainOf(
+              nextTT == TransitionType.ENTER
+              // If we're entering a reference, the chain should not include the
+              // head until the body has been entered.
+              ? nextParse.stack.tl()
+              : nextParse.stack
+              );
+          if (!nextParse.inp.isEmpty()) {
             // If it's not empty, then we're in the process of failing over
             // to an alternative that we committed to and so which will
             // eventually lead to failure of the whole parse.
@@ -673,13 +703,6 @@ final class GrammarSearchGraph {
             // 2. states which would not join even if we hadn't committed
             // but there's no practical value in doing so.
           } else {
-            Parse parseAfterTransition = step.p
-                .builder()
-                .withStack(nextStack)
-                .withOutput(nextOut)
-                .withInput(nextInp)
-                .build();
-
             if (DEBUG) {
               System.out.println(
                   "key=" + step.key
@@ -688,23 +711,45 @@ final class GrammarSearchGraph {
               TextTables.appendTable(
                   System.out,
                   column("Before", step.p.stack),
-                  column("After", parseAfterTransition.stack));
+                  column("Stack", p.stack),
+                  column("After", nextParse.stack));
             }
 
+            Combinator nextC = null;
+            switch (nextTT) {
+            case ENTER:
+              nextC = nextParse.stack.hd();
+              break;
+            case EXIT_PASS: case EXIT_FAIL:
+              FList<Combinator> tl = nextParse.stack.tl();
+              if (tl.isEmpty()) {
+                // If the stack is empty, then nextParse represents a parse
+                // end state.
+                nextC = nextParse.stack.hd();
+              } else {
+                nextC = tl.hd();
+              }
+              break;
+            }
+            Preconditions.checkNotNull(nextC);
+            NodeKey nextNodeKey = new NodeKey(nextChain, nextC, nextTT);
+
+            checkParseStateValid(nextParse);
+
             int nNewRollbacks =
-                parseAfterTransition.out.length() < step.p.out.length()
+                nextParse.out.length() < p.out.length()
                 ? 1 : 0;
 
             Preconditions.checkState(
-                !(nextD instanceof SingletonCombinator)
-                || nextStack.isEmpty(),
+                !(nextC instanceof SingletonCombinator)
+                || nextParse.stack.tl().isEmpty(),
                 "Lost position information."
                 );
-            NodeKey nextNodeKey = new NodeKey(nextChain, nextD, nextTT);
+
             periphery.add(new SearchStep(
                 branchIndex,
                 nextNodeKey,
-                parseAfterTransition,
+                nextParse,
                 step.nRollbacks + nNewRollbacks,
                 step));
           }
@@ -721,7 +766,7 @@ final class GrammarSearchGraph {
     }
     if (DEBUG) {
       System.out.println(
-          "Joined at " + bestMatch.key + " with " + bestMatch.nReaching()
+          "Joined at " + bestMatchKey + " with " + bestMatch.nReaching()
           + " reaching branches");
     }
     ImmutableList.Builder<Parse> joinStates = ImmutableList.builder();
@@ -737,44 +782,70 @@ final class GrammarSearchGraph {
         SearchStep reachingStep = reachingStepOpt.get();
         joinedSuccessfully.set(i);
         Parse joinState = reachingStep.p;
-        TransitionType tt = bestMatch.key.t;
+        Combinator joinStateHd = joinState.stack.hd();
+        TransitionType tt = TransitionType.of(joinStateHd);
         switch (tt) {
           case ENTER:
-            joinState = joinState
-                .builder()
-                .withStack(
-                    FList.cons(
-                        Pause.pause(bestMatch.key.c), joinState.stack))
-                .build();
             break;
           case EXIT_PASS:
           case EXIT_FAIL:
-            ImmutableList<ParseDelta> deltas =
-                bestMatch.key.c.epsilonTransition(tt, lang, joinState);
-            Preconditions.checkState(deltas.size() == 1);
-            ParseDelta delta = deltas.get(0);
-            ParseDelta.IOTransform xform = delta.ioTransform;
-            xform.apply(joinState.inp, joinState.out);
-            FList<Combinator> newStack = joinState.stack;
-            if (delta.push) {
-              // Should not be the case since ENTER is handled above.
-              newStack = FList.cons(bestMatch.key.c, newStack);
+            joinState = joinState.pop();
+            if (!joinState.stack.isEmpty()) {
+              ImmutableList<ParseDelta> deltas = joinState.stack.hd()
+                  .epsilonTransition(tt, lang, joinState);
+              if (deltas.size() == 1) {
+                joinState = joinState.apply(deltas.get(0));
+              } else {
+                // Loops have two ways of passing : break or continue.
+                // TODO: We might have to pick one based on other join states.
+              }
             }
-            newStack = FList.cons(Pause.pause(delta.c), joinState.stack);
-            joinState = joinState.builder()
-                .withInput(xform.getTransformedCursor())
-                .withOutput(xform.getTransformedOutput())
-                .withStack(newStack)
-                .build();
             break;
         }
-        joinStates.add(joinState);
+        joinStates.add(joinState.pause());
       }
     }
     return new JoinResult(
         branchEndStates,
         joinStates.build(),
         joinedSuccessfully);
+  }
+
+  /**
+   * Checks that there are all and only ephemeral outputs needed by the
+   * stack elements.
+   */
+  private static void checkParseStateValid(Parse p) {
+    if (DEBUG || true) {
+      FList<Output> ephemerals = p.out.filter(
+          Predicates.instanceOf(EphemeralOutput.class));
+      for (Combinator c : p.stack.tl()) {
+        EphemeralOutput target = null;
+        // TODO: this is brittle.  Ideally, we wouldn't filter out ephemrals
+        // not here, or have this automatically extend to other combinator
+        // types.
+        if (c instanceof OrCombinator) {
+          target = BranchMarker.INSTANCE;
+        } else if (c instanceof LoopCombinator) {
+          target = LoopMarker.INSTANCE;
+        } else if (c instanceof LookaheadCombinator) {
+          target = LookaheadMarker.INSTANCE;
+        }
+        if (target != null) {
+          Optional<Output> hd = ephemerals.hdOpt();
+          if (!(hd.isPresent() && target.equals(hd.get()))) {
+            TextTables.appendTable(
+                System.out,
+                TextTables.column("problem stack", p.stack),
+                TextTables.column("out", p.out));
+            throw new AssertionError(
+                "Invalid parse state.  Expected " + target + " got " + hd);
+          } else {
+            ephemerals = ephemerals.tl();
+          }
+        }
+      }
+    }
   }
 
   private final Table<ProdName, FList<Output>, Optional<FList<Output>>>

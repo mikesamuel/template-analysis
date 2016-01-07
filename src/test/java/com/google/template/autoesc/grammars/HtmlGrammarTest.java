@@ -44,7 +44,10 @@ public final class HtmlGrammarTest extends AbstractGrammarTest {
     makeTest()
         .withStartProd("Comment")
         .withInput("<!-- Foo -->")
-        .expectOutput("<!-- Foo -->")
+        .expectOutput(
+            lbnd("Comment"),
+            str("<!-- Foo -->"),
+            rbnd("Comment"))
         .run();
   }
 
@@ -53,7 +56,10 @@ public final class HtmlGrammarTest extends AbstractGrammarTest {
     makeTest()
         .withStartProd("Comment")
         .withInput("<!-- Foo--Bar -->")
-        .expectOutput("<!-- Foo--Bar -->")
+        .expectOutput(
+            lbnd("Comment"),
+            str("<!-- Foo--Bar -->"),
+            rbnd("Comment"))
         .run();
   }
 
@@ -62,7 +68,10 @@ public final class HtmlGrammarTest extends AbstractGrammarTest {
     makeTest()
         .withStartProd("Comment")
         .withInput("<!-- Foo->Bar -->")
-        .expectOutput("<!-- Foo->Bar -->")
+        .expectOutput(
+            lbnd("Comment"),
+            str("<!-- Foo->Bar -->"),
+            rbnd("Comment"))
         .run();
   }
 
@@ -71,7 +80,10 @@ public final class HtmlGrammarTest extends AbstractGrammarTest {
     makeTest()
         .withStartProd("Comment")
         .withInput("<!-- Foo --->")
-        .expectOutput("<!-- Foo --->")
+        .expectOutput(
+            lbnd("Comment"),
+            str("<!-- Foo --->"),
+            rbnd("Comment"))
         .run();
   }
 
@@ -80,7 +92,10 @@ public final class HtmlGrammarTest extends AbstractGrammarTest {
     makeTest()
         .withStartProd("Comment")
         .withInput("<!-- Foo --")
-        .expectOutput("<!-- Foo --")
+        .expectOutput(
+            lbnd("Comment"),
+            str("<!-- Foo --"),
+            rbnd("Comment"))
         .run();
   }
 
@@ -89,7 +104,10 @@ public final class HtmlGrammarTest extends AbstractGrammarTest {
     makeTest()
         .withStartProd("Comment")
         .withInput("<!-- Foo -")
-        .expectOutput("<!-- Foo -")
+        .expectOutput(
+            lbnd("Comment"),
+            str("<!-- Foo -"),
+            rbnd("Comment"))
         .run();
   }
 
@@ -98,7 +116,10 @@ public final class HtmlGrammarTest extends AbstractGrammarTest {
     makeTest()
         .withStartProd("Comment")
         .withInput("<!-- Foo ")
-        .expectOutput("<!-- Foo ")
+        .expectOutput(
+            lbnd("Comment"),
+            str("<!-- Foo "),
+            rbnd("Comment"))
         .run();
   }
 
@@ -107,7 +128,10 @@ public final class HtmlGrammarTest extends AbstractGrammarTest {
     makeTest()
         .withStartProd("Comment")
         .withInput("<!-->")
-        .expectOutput("<!-->")
+        .expectOutput(
+            lbnd("Comment"),
+            str("<!-->"),
+            rbnd("Comment"))
         .run();
   }
 
@@ -116,7 +140,10 @@ public final class HtmlGrammarTest extends AbstractGrammarTest {
     makeTest()
         .withStartProd("Comment")
         .withInput("<!--->")
-        .expectOutput("<!--->")
+        .expectOutput(
+            lbnd("Comment"),
+            str("<!--->"),
+            rbnd("Comment"))
         .run();
   }
 
@@ -125,7 +152,10 @@ public final class HtmlGrammarTest extends AbstractGrammarTest {
     makeTest()
         .withStartProd("Comment")
         .withInput("<!---->")
-        .expectOutput("<!---->")
+        .expectOutput(
+            lbnd("Comment"),
+            str("<!---->"),
+            rbnd("Comment"))
         .run();
   }
 
@@ -134,7 +164,10 @@ public final class HtmlGrammarTest extends AbstractGrammarTest {
     makeTest()
         .withStartProd("Comment")
         .withInput("<!----")
-        .expectOutput("<!----")
+        .expectOutput(
+            lbnd("Comment"),
+            str("<!----"),
+            rbnd("Comment"))
         .run();
   }
 
@@ -143,7 +176,10 @@ public final class HtmlGrammarTest extends AbstractGrammarTest {
     makeTest()
         .withStartProd("Comment")
         .withInput("<!doctype foo>")
-        .expectOutput("<!doctype foo>")
+        .expectOutput(
+            lbnd("Comment"),
+            str("<!doctype foo>"),
+            rbnd("Comment"))
         .run();
   }
 
@@ -152,7 +188,10 @@ public final class HtmlGrammarTest extends AbstractGrammarTest {
     makeTest()
         .withStartProd("Comment")
         .withInput("<!doctype foo")
-        .expectOutput("<!doctype foo")
+        .expectOutput(
+            lbnd("Comment"),
+            str("<!doctype foo"),
+            rbnd("Comment"))
         .run();
   }
 
@@ -161,7 +200,10 @@ public final class HtmlGrammarTest extends AbstractGrammarTest {
     makeTest()
         .withStartProd("Comment")
         .withInput("<?doctype foo>")
-        .expectOutput("<?doctype foo>")
+        .expectOutput(
+            lbnd("Comment"),
+            str("<?doctype foo>"),
+            rbnd("Comment"))
         .run();
   }
 
@@ -172,14 +214,24 @@ public final class HtmlGrammarTest extends AbstractGrammarTest {
         .withStartProd("Html")
         .withInput("Hello, <b>World!</b>")
         .expectOutput(
-              str("Hello, ")
-            , lbnd("Tag")
-            ,   str("<b>")
-            , rbnd("Tag")
-            , str("World!")
-            , lbnd("EndTag")
-            ,   str("</b>")
-            , rbnd("EndTag")
+              lbnd("Html")
+            ,   str("Hello, ")
+            ,   lbnd("Tag")
+            ,     str("<")
+            ,     lbnd("TagName")
+            ,       str("b")
+            ,     rbnd("TagName")
+            ,     str(">")
+            ,   rbnd("Tag")
+            ,   str("World!")
+            ,   lbnd("EndTag")
+            ,     str("</")
+            ,     lbnd("TagName")
+            ,       str("b")
+            ,     rbnd("TagName")
+            ,     str(">")
+            ,   rbnd("EndTag")
+            , rbnd("Html")
             )
         .run();
   }
@@ -191,15 +243,23 @@ public final class HtmlGrammarTest extends AbstractGrammarTest {
         .withStartProd("Html")
         .withInput("<textarea>foo</textarea>")
         .expectOutput(
-              lbnd("SpecialTag")
-            ,   str("<textarea>")
-            ,   llimit(limitCheckPattern)
-            ,     str("foo")
-            ,   rlimit(limitCheckPattern)
-            , rbnd("SpecialTag")
-            , lbnd("EndTag")
-            ,   str("</textarea>")
-            , rbnd("EndTag")
+              lbnd("Html")
+              ,   lbnd("SpecialTag")
+            ,     str("<textarea>")
+            ,     llimit(limitCheckPattern)
+            ,       lbnd("RcData")
+            ,         str("foo")
+            ,       rbnd("RcData")
+            ,     rlimit(limitCheckPattern)
+            ,   rbnd("SpecialTag")
+            ,   lbnd("EndTag")
+            ,     str("</")
+            ,     lbnd("TagName")
+            ,       str("textarea")
+            ,     rbnd("TagName")
+            ,     str(">")
+            ,   rbnd("EndTag")
+            , rbnd("Html")
         )
         .run();
   }
@@ -210,21 +270,31 @@ public final class HtmlGrammarTest extends AbstractGrammarTest {
     makeTest()
         .withInput("<script>var s = 'string';</script>")
         .expectOutput(
-              lbnd("SpecialTag")
-            ,   str("<script>")
-            ,    llimit(limitCheckPattern)
-            ,      lbnd("Js.Program")
-            ,        str("var s = ")
-            ,        lbnd("Js.StringLiteral")
-            ,          str("'string'")
-            ,        rbnd("Js.StringLiteral")
-            ,        str(";")
-            ,      rbnd("Js.Program")
-            ,    rlimit(limitCheckPattern)
-            , rbnd("SpecialTag")
-            , lbnd("EndTag")
-            ,   str("</script>")
-            , rbnd("EndTag")
+              lbnd("Html")
+            ,   lbnd("SpecialTag")
+            ,     str("<script>")  // TODO: Need bnd("TagName")?
+            ,     llimit(limitCheckPattern)
+            ,       lbnd("Js.Program")
+            ,         str("var ")
+            ,         lbnd("Js.IdentifierName")
+            ,           str("s")
+            ,         rbnd("Js.IdentifierName")
+            ,         str(" = ")
+            ,         lbnd("Js.StringLiteral")
+            ,           str("'string'")
+            ,         rbnd("Js.StringLiteral")
+            ,         str(";")
+            ,       rbnd("Js.Program")
+            ,     rlimit(limitCheckPattern)
+            ,   rbnd("SpecialTag")
+            ,   lbnd("EndTag")
+            ,     str("</")
+            ,     lbnd("TagName")
+            ,     str("script")
+            ,     rbnd("TagName")
+            ,     str(">")
+            ,   rbnd("EndTag")
+            , rbnd("Html")
             )
         .run();
   }
@@ -235,32 +305,45 @@ public final class HtmlGrammarTest extends AbstractGrammarTest {
     makeTest()
         .withInput("<span style=\"color: red\">")
         .expectOutput(
-              lbnd("Tag")
-            ,   str("<span ")
-            ,   ldef(HtmlGrammar.ATTR)
-            ,     str("style")
-            ,     val(HtmlGrammar.AttrT.STYLE)
-            ,     str("=\"")
-            ,     llimit(dq)
-            ,       lembed(StringTransforms.HTML)
-            ,         lbnd("Css.Props")
-            ,           ldef(CssGrammar.PROP_KIND)
-            ,             lbnd("Css.Name")
-            ,               str("color")
-            ,               val(PropKindT.OTHER)
-            ,             rbnd("Css.Name")
-            ,             str(": ")
-            ,             lbnd("Css.Value")
-            ,               str("red")
-            ,             rbnd("Css.Value")
-            ,           rdef(CssGrammar.PROP_KIND)
-            ,         rbnd("Css.Props")
-            ,       rembed(StringTransforms.HTML)
-            ,     rlimit(dq)
-            ,     str("\"")
-            ,   rdef(HtmlGrammar.ATTR)
-            ,   str(">")
-            , rbnd("Tag")
+              lbnd("Html")
+              ,   lbnd("Tag")
+            ,     str("<")
+            ,     lbnd("TagName")
+            ,       str("span")
+            ,     rbnd("TagName")
+            ,     str(" ")
+            ,     lbnd("Attrib")
+            ,       ldef(HtmlGrammar.ATTR)
+            ,         lbnd("AttribName")
+            ,           str("style")
+            ,           val(HtmlGrammar.AttrT.STYLE)
+            ,         rbnd("AttribName")
+            ,         str("=")
+            ,         lbnd("AttribValue")
+            ,           str("\"")
+            ,           llimit(dq)
+            ,             lembed(StringTransforms.HTML)
+            ,               lbnd("Css.Props")
+            ,                 ldef(CssGrammar.PROP_KIND)
+            ,                   lbnd("Css.Name")
+            ,                     str("color")
+            ,                     val(PropKindT.OTHER)
+            ,                   rbnd("Css.Name")
+            ,                   str(": ")
+            ,                   lbnd("Css.Value")
+            ,                     str("red")
+            ,                   rbnd("Css.Value")
+            ,                 rdef(CssGrammar.PROP_KIND)
+            ,               rbnd("Css.Props")
+            ,             rembed(StringTransforms.HTML)
+            ,           rlimit(dq)
+            ,           str("\"")
+            ,         rbnd("AttribValue")
+            ,       rdef(HtmlGrammar.ATTR)
+            ,     rbnd("Attrib")
+            ,     str(">")
+            ,   rbnd("Tag")
+            , rbnd("Html")
             )
         .run();
   }
@@ -275,16 +358,26 @@ public final class HtmlGrammarTest extends AbstractGrammarTest {
     //      --> "C" ---------
     GrammarTestCase.Builder test = makeTest()
         .withInput("H")
-        .expectOutput(str("H"));
+        .expectOutput(
+            lbnd("Html"),
+            str("H"));
     GrammarTestCase.BranchBuilder topBranch = test.fork()
         .withInput("<b>W</b>")
         .expectOutput(
               lbnd("Tag")
-            ,   str("<b>")
+            ,   str("<")
+            ,   lbnd("TagName")
+            ,     str("b")
+            ,   rbnd("TagName")
+            ,   str(">")
             , rbnd("Tag")
             , str("W")
             , lbnd("EndTag")
-            ,   str("</b>")
+            ,   str("</")
+            ,   lbnd("TagName")
+            ,     str("b")
+            ,   rbnd("TagName")
+            ,   str(">")
             , rbnd("EndTag")
             );
     GrammarTestCase.BranchBuilder bottomBranch = test.fork()
@@ -292,7 +385,9 @@ public final class HtmlGrammarTest extends AbstractGrammarTest {
         .expectOutput("C");
     topBranch.join(bottomBranch)
         .withInput("!")
-        .expectOutput("!");
+        .expectOutput(
+            str("!"),
+            rbnd("Html"));
     test.run();
   }
 

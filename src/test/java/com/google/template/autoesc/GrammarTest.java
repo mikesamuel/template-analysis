@@ -19,7 +19,7 @@ public final class GrammarTest {
   static final Combinators C = Combinators.get();
 
   static Language lang(Combinator c) {
-    return new Language.Builder().define(START_NAME, c).build();
+    return new Language.Builder().define(START_NAME, c).unbounded().build();
   }
 
   @CheckReturnValue

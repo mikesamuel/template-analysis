@@ -25,9 +25,12 @@ final class LookaheadOptimizer {
     }
     LookaheadLookinto lali = new LookaheadLookinto(lang);
     for (Map.Entry<ProdName, Combinator> e : lang.byName().entrySet()) {
+      ProdName name = e.getKey();
       optimized.define(
-          e.getKey(),
-          insertLookaheads(e.getValue(), lali));
+          name,
+          insertLookaheads(e.getValue(), lali))
+          .unbounded()
+          .docComment(lang.getDocComment(name));
     }
     return optimized.build();
   }

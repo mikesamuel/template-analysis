@@ -9,10 +9,10 @@ import org.junit.Test;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.template.autoesc.ParseWatcher.Branch;
-import com.google.template.autoesc.combimpl.BoundedReferenceCombinator;
 import com.google.template.autoesc.combimpl.EmptyCombinator;
 import com.google.template.autoesc.combimpl.OrCombinator;
 import com.google.template.autoesc.combimpl.ReferenceCombinator;
@@ -48,6 +48,56 @@ public final class GrammarSearchGraphTest {
     p.continueParse();
     return p.getParse();
   }
+
+  private static Parse advanceUntil(Parse p, Combinator c) {
+    return advanceUntil(p, headMatches(c));
+  }
+
+  private static Parse advancePast(Parse p, Combinator c) {
+    return advancePast(p, headMatches(c));
+  }
+
+  private static Parse advanceUntil(Parse p, Predicate<? super Parse> q) {
+    return advance(p, q, Predicates.alwaysFalse());
+  }
+
+  private static Parse advancePast(Parse p, Predicate<? super Parse> q) {
+    return advance(p, Predicates.alwaysFalse(), q);
+  }
+
+  private static Parse advance(
+      Parse start, Predicate<? super Parse> before,
+      Predicate<? super Parse> after) {
+    Parse p = start;
+    boolean wasPaused = p.isPaused();
+    if (wasPaused) {
+      p = p.resume();
+    }
+    while (true) {
+      if (before.apply(p)) {
+        break;
+      }
+      Parse op = p;
+      p = p.smallStep(TeeParseWatcher.DO_NOTHING_WATCHER);
+      if (after.apply(op)) {
+        break;
+      }
+    }
+    if (wasPaused) {
+      p = p.pause();
+    }
+    return p;
+  }
+
+  private static Predicate<Parse> headMatches(final Combinator c) {
+    return new Predicate<Parse>() {
+      @Override
+      public boolean apply(Parse p) {
+        return c.equals(p.stack.hd());
+      }
+    };
+  }
+
 
   /**
    * {@code
@@ -149,48 +199,35 @@ public final class GrammarSearchGraphTest {
 
   @Test
   public void testJoinThatDescendsIntoReferent() {
+    Combinator fooLit, aRef;
+
     Language lang = new Language.Builder()
         .define("Start", C.seq(
-            C.opt(C.lit("foo")),
-            C.or(C.ref("A"), C.ref("B"))))
+            C.opt(fooLit = C.lit("foo")),
+            C.or(aRef = C.ref("A"), C.ref("B"))))
+        .unbounded()
         .define("A", C.opt(C.chars('a')))
+        .unbounded()
         .define("B", C.opt(C.chars('b')))
+        .unbounded()
         .build();
-    SeqCombinator start = (SeqCombinator) lang.get(new ProdName("Start"));
-    OrCombinator fooOpt = (OrCombinator) start.first;
-    SeqCombinator foo = (SeqCombinator) fooOpt.first;
-    OrCombinator aOrB = (OrCombinator) start.second;
-    ReferenceCombinator aRef = (ReferenceCombinator) aOrB.first;
-    OrCombinator aBody = (OrCombinator) lang.get(new ProdName("A"));
-    Combinator letterA = aBody.first;
 
     // A branch at the very start
-    Parse branch0 = Parse.builder(lang)
-        .withStack(FList.of(Pause.pause(start)))
-        .build();
+    Parse branch0 = after(lang, "");
     // A branch at the start of "foo"
-    Parse branch1 = Parse.builder(lang)
-        .withStack(FList.of(
-            start,
-            fooOpt,
-            foo,
-            Pause.pause(foo.first)))
-        .withOutput(FList.<Output>of(BranchMarker.INSTANCE))
-        .build();
+    Parse branch1 = advanceUntil(after(lang, ""), fooLit);
     // A branch at the start in non-terminal A.
-    Parse branch2 = Parse.builder(lang)
-        .withStack(FList.of(
-            aOrB,
-            aRef,
-            aBody,
-            Pause.pause(letterA)))
-        .withOutput(FList.<Output>of(
-            BranchMarker.INSTANCE, BranchMarker.INSTANCE))
+    Parse branch2 = advancePast(after(lang, "foo"), aRef);
+
+    Parse branch2NoFoo = branch2.builder()
+        .withOutput(
+            branch2.out.filter(
+                Predicates.not(Predicates.instanceOf(StringOutput.class))))
         .build();
 
     assertJoinStates(
         branch0, branch1, branch2,
-        branch2, branch2, branch2);
+        branch2NoFoo, branch2NoFoo, branch2);
   }
 
   @Test
@@ -202,8 +239,11 @@ public final class GrammarSearchGraphTest {
         .define("Start", C.seq(
             C.opt(C.lit("foo")),
             C.or(C.ref("A"), C.ref("B"))))
+        .unbounded()
         .define("A", C.chars('a'))
+        .unbounded()
         .define("B", C.opt(C.chars('b')))
+        .unbounded()
         .build();
 
     SeqCombinator start = (SeqCombinator) lang.get(new ProdName("Start"));
@@ -234,15 +274,16 @@ public final class GrammarSearchGraphTest {
     ProdName bName = new ProdName("B");
 
     Language lang = new Language.Builder()
-        .define(start, C.seq(C.bref(aName), C.bref(bName)))
+        .define(start, C.seq(C.ref(aName), C.ref(bName)))
+        .unbounded()
         .define(aName, C.emit(TEST_OUTPUT))
         .define(bName, C.anyChar())
         .build();
 
     Combinator bRef = lang.get(start).children().get(1);
     Preconditions.checkState(
-        bRef instanceof BoundedReferenceCombinator
-        && bName.equals(((BoundedReferenceCombinator) bRef).name));
+        bRef instanceof ReferenceCombinator
+        && bName.equals(((ReferenceCombinator) bRef).name));
 
 
     Combinator startBody = lang.get(start);
@@ -261,8 +302,7 @@ public final class GrammarSearchGraphTest {
         .withOutput(FList.of(
             new Boundary(LEFT, aName),
             TEST_OUTPUT,
-            new Boundary(RIGHT, aName),
-            new Boundary(LEFT, bName)
+            new Boundary(RIGHT, aName)
             ))
         .build();
 
@@ -294,6 +334,7 @@ public final class GrammarSearchGraphTest {
                         C.opt(C.chars('r')))),
                 C.lit("baz"))
             )
+        .unbounded()
         .build();
 
     Parse branch0 = after(lang, "fo");
@@ -357,14 +398,17 @@ public final class GrammarSearchGraphTest {
             start,
             optionalACall
             )
+        .unbounded()
         .define(
             a,
             C.seq(
                 C.opt(C.chars('x')),
                 optionalBCall))
+        .unbounded()
         .define(b, C.seq(
             C.opt(C.chars('y')),
             C.opt(C.chars('z'))))
+        .unbounded()
         .build();
 
     Parse parse0 = after(lang, "x");
@@ -432,10 +476,11 @@ public final class GrammarSearchGraphTest {
         .define(aName, C.decl(
             v,
             C.seq(
-                C.bref(bName),
-                C.bref(cName),
-                C.bref(dName))
+                C.ref(bName),
+                C.ref(cName),
+                C.ref(dName))
             ))
+        .unbounded()
         .define(bName, C.or(
             C.seq(C.lit("x"), C.set(v, true)),
             C.set(v, false)
@@ -444,12 +489,12 @@ public final class GrammarSearchGraphTest {
         .define(dName, C.opt(C.lit("y")))
         .build();
 
-    BoundedReferenceCombinator ref = find(
+    ReferenceCombinator ref = find(
         lang.get(aName),
-        BoundedReferenceCombinator.class,
-        new Predicate<BoundedReferenceCombinator>() {
+        ReferenceCombinator.class,
+        new Predicate<ReferenceCombinator>() {
           @Override
-          public boolean apply(BoundedReferenceCombinator c) {
+          public boolean apply(ReferenceCombinator c) {
             return dName.equals(c.name);
           }
         })
@@ -476,8 +521,7 @@ public final class GrammarSearchGraphTest {
             new Boundary(RIGHT, bName),
             new Boundary(LEFT, cName),
             literalX,
-            new Boundary(RIGHT, cName),
-            new Boundary(LEFT, dName)
+            new Boundary(RIGHT, cName)
             ))
         .build();
 

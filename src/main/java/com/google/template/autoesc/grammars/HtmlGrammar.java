@@ -53,22 +53,23 @@ public final class HtmlGrammar extends GrammarFactory {
     lang.define(html, star(ref("Element")));
     lang.define("Element", or(
         ref("TextChar"),
-        bref("EndTag"),
-        bref("SpecialTag"),
-        bref("Tag"),
-        bref("Comment"),
+        ref("EndTag"),
+        ref("SpecialTag"),
+        ref("Tag"),
+        ref("Comment"),
         // This allows joined grammars to successfully commit to
         // re-entering the loop but without requiring more output.
         endOfInput()  // TODO: is this really necessary anymore?
-        ));
+        ))
+        .unbounded();
     lang.define("SpecialTag", or(
         seq(
             litIgnCase("<script"),
             ref("TagTail"),
             until(
                 or(
-                    bref("Js.Program"),
-                    bref("Malformed")),
+                    ref("Js.Program"),
+                    ref("Malformed")),
                 closeTagPattern("script")
                 )
             ),
@@ -77,8 +78,8 @@ public final class HtmlGrammar extends GrammarFactory {
             ref("TagTail"),
             until(
                 or(
-                    bref("Css.StyleSheet"),
-                    bref("Malformed")),
+                    ref("Css.StyleSheet"),
+                    ref("Malformed")),
                 closeTagPattern("style"))
             ),
         seq(
@@ -111,7 +112,8 @@ public final class HtmlGrammar extends GrammarFactory {
                                 UniRanges.btw('a', 'z')))))
                 )
             )
-        ));
+        ))
+        .unbounded();
     lang.define("Comment", or(
         seq(lit("<!-"),
             plus(chars('-')),
@@ -143,7 +145,8 @@ public final class HtmlGrammar extends GrammarFactory {
             opt(ref("Spaces")),
             star(seq(ref("Attrib"), opt(ref("Spaces")))))),
         opt(lit("/")),
-        or(lit(">"), endOfInput())));
+        or(lit(">"), endOfInput())))
+        .unbounded();
     lang.define("RcData", star(anyChar()));
     lang.define("TagName", seq(
         chars(UniRanges.union(
@@ -197,7 +200,8 @@ public final class HtmlGrammar extends GrammarFactory {
                 plus(ref("AttribNameChar")),
                 set(ATTR, AttrT.OTHER))));
     lang.define("AttribNameChar",
-        invChars('\t', '\n', '\f', '\r', ' ', '>', '/', '"', '\'', '='));
+        invChars('\t', '\n', '\f', '\r', ' ', '>', '/', '"', '\'', '='))
+        .unbounded();
 
     lang.define("AttribValue", or(
         seq(
@@ -216,20 +220,23 @@ public final class HtmlGrammar extends GrammarFactory {
 
     lang.define("AttribContent", or (
             seq(in(ATTR, AttrT.SCRIPT),
-                embed(bref("Js.Program"), StringTransforms.HTML)),
+                embed(ref("Js.Program"), StringTransforms.HTML)),
             seq(in(ATTR, AttrT.STYLE),
-                embed(bref("Css.Props"), StringTransforms.HTML)),
+                embed(ref("Css.Props"), StringTransforms.HTML)),
             seq(in(ATTR, AttrT.URL),
-                embed(bref("Url.Url"), StringTransforms.HTML)),
-            seq(in(ATTR, AttrT.OTHER), star(anyChar()))));
+                embed(ref("Url.Url"), StringTransforms.HTML)),
+            seq(in(ATTR, AttrT.OTHER), star(anyChar()))))
+        .unbounded();
 
-    lang.define("Spaces", plus(chars('\t', '\n', '\f', '\r', ' ')));
+    lang.define("Spaces", plus(chars('\t', '\n', '\f', '\r', ' ')))
+        .unbounded();
 
     lang.define("Break", not(chars(UniRanges.union(
         UniRanges.btw('A', 'Z'),
         UniRanges.btw('a', 'z'),
         UniRanges.btw('0', '9'),
-        UniRanges.of(':', '-', '_')))));
+        UniRanges.of(':', '-', '_')))))
+        .unbounded();
 
     lang.define("Malformed", star(anyChar()));
 

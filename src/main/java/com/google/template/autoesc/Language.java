@@ -1,6 +1,9 @@
 package com.google.template.autoesc;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Map;
 import java.util.Set;
@@ -13,11 +16,21 @@ import com.google.common.base.Functions;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.template.autoesc.demo.DemoServer;
+import com.google.template.autoesc.out.Boundary;
+import com.google.template.autoesc.out.Side;
+import com.google.template.autoesc.viz.AttribName;
+import com.google.template.autoesc.viz.DetailLevel;
+import com.google.template.autoesc.viz.TagName;
+import com.google.template.autoesc.viz.Visualizable;
+import com.google.template.autoesc.viz.VizOutput;
+import com.google.template.autoesc.combimpl.AppendOutputCombinator;
+import com.google.template.autoesc.combimpl.EmptyCombinator;
 import com.google.template.autoesc.combimpl.ReferenceCombinator;
 import com.google.template.autoesc.combimpl.SeqCombinator;
 
@@ -37,7 +50,7 @@ import com.google.template.autoesc.combimpl.SeqCombinator;
  * paths along which input has been consumed.
  * </p>
  */
-public final class Language {
+public final class Language implements Visualizable {
   /** The default start production. */
   public final ProdName defaultStartProdName;
   /** Used to compute {@link DemoServer} URLs for failing unit-tests. */
@@ -60,11 +73,12 @@ public final class Language {
       ImmutableMap.Builder<ProdName, Production> b = ImmutableMap.builder();
       for (Map.Entry<ProdName, Def> e : defsByName.entrySet()) {
         ProdName name = e.getKey();
-        Combinator body = e.getValue().toCombinator(mapMeta);
+        Def def = e.getValue();
+        Combinator body = def.toCombinator(name, mapMeta);
         final NodeMetadata bodyMd = body.getMetadata();
         Combinators c = Combinators.using(
             Suppliers.compose(mapMeta, Suppliers.ofInstance(bodyMd)));
-        b.put(name, new Production(name, body, c));
+        b.put(name, new Production(name, body, c, def.getDocComment()));
       }
       resolvedProds = b.build();
 
@@ -109,8 +123,11 @@ public final class Language {
     ImmutableMap.Builder<ProdName, Def> reachableByName =
         ImmutableMap.builder();
     for (Map.Entry<ProdName, Production> e : byName.entrySet()) {
-      if (reachable.contains(e.getKey())) {
-        reachableByName.put(e.getKey(), new Def(e.getValue().body));
+      ProdName name = e.getKey();
+      if (reachable.contains(name)) {
+        Production p = e.getValue();
+        reachableByName.put(
+            name, new Def(p.body, Optional.<ProdName>absent(), p.docComment));
       }
     }
     return new Language(
@@ -156,6 +173,11 @@ public final class Language {
     return requireProduction(name).refBeforeAnyCharacter;
   }
 
+  /** Any documentation comment associated with the named production. */
+  public Optional<String> getDocComment(ProdName name) {
+    return requireProduction(name).docComment;
+  }
+
   private @Nonnull Production requireProduction(ProdName name)
       throws NoSuchProductionException {
     Production p = byName.get(name);
@@ -179,19 +201,53 @@ public final class Language {
     private Optional<String> demoServerQuery = Optional.absent();
     private final ImmutableMap.Builder<ProdName, Def> byName =
         ImmutableMap.builder();
+    private Def lastDef;
 
     /** Defines a production. */
     public Builder define(ProdName name, Combinator c) {
       if (!defaultStartProdName.isPresent()) {
         defaultStartProdName = Optional.of(name);
       }
-      byName.put(name, new Def(c));
+      lastDef = new Def(
+          c, Optional.<ProdName>absent(), Optional.<String>absent());
+      lastDef.setBounded(true);  // Until unbounded is called.
+      byName.put(name, lastDef);
       return this;
     }
 
     /** Defines a production. */
     public Builder define(String name, Combinator c) {
       return define(new ProdName(name), c);
+    }
+
+    /**
+     * Marks the last defined production as unbounded so that the output of its
+     * body will not be wrapped with {@link Boundary} markers.
+     */
+    public Builder unbounded() {
+      if (lastDef == null) {
+        throw new IllegalStateException();
+      }
+      lastDef.setBounded(false);
+      return this;
+    }
+
+    /**
+     * Associates a documentation comment with the last production defined.
+     */
+    public Builder docComment(Optional<String> comment) {
+      if (lastDef == null) {
+        throw new IllegalStateException();
+      }
+      this.lastDef.setDocComment(comment);
+      return this;
+    }
+
+    /**
+     * Associates a documentation comment with the last production defined.
+     */
+    public Builder docComment(String commentText) {
+      return docComment(Optional.of(commentText));
     }
 
     /**
@@ -209,9 +265,11 @@ public final class Language {
     @SuppressWarnings("synthetic-access")
     public Builder include(ProdName prefix, Language lang) {
       for (Map.Entry<ProdName, Production> e : lang.byName.entrySet()) {
+        ProdName prefixedName = e.getKey().withPrefix(prefix);
+        Production p = e.getValue();
         byName.put(
-            e.getKey().withPrefix(prefix),
-            new Def(e.getValue().body, prefix));
+            prefixedName,
+            new Def(p.body, Optional.of(prefix), p.docComment));
       }
       return this;
     }
@@ -320,6 +378,120 @@ public final class Language {
       super(Joiner.on(", ").join(onStack));
     }
   }
+
+
+  /**
+   * Writes out productions in {@code Name ":=" Body ";"} form.
+   * @param lvl if {@link DetailLevel#LONG} then will include
+   *     imported productions.
+   */
+  @Override
+  public void visualize(DetailLevel lvl, VizOutput out)
+      throws IOException {
+    try (Closeable tbl = out.open(
+        TagName.TABLE, AttribName.ID, "grammar", AttribName.CLASS, "grammar")) {
+      Iterator<Map.Entry<ProdName, Production>> it
+          = byName.entrySet().iterator();
+      while (it.hasNext()) {
+        Map.Entry<ProdName, Production> e = it.next();
+        ProdName name = e.getKey();
+        if (lvl.compareTo(DetailLevel.LONG) < 0
+            && name.text.indexOf('.') >= 0) {
+          continue;
+        }
+        Production p = e.getValue();
+        Combinator body = p.body;
+        String anchorId = "def:" + name;  // See ReferenceCombinator
+        Optional<Combinator> unmarkedBody = stripMarkersFromBody(name, body);
+        boolean isMarked = unmarkedBody.isPresent();
+        String decoratedName = isMarked ? "<" + name + ">" : name.text;
+        if (p.docComment.isPresent()) {
+          String commentText = p.docComment.get();
+          StringBuilder fullComment = new StringBuilder();
+          fullComment.append("/**\n * ");
+          for (String commentLine : commentText.split("\r\n?|\n")) {
+            fullComment.append(" * ")
+                .append(commentLine.replace("*/", "* /"))
+                .append('\n');
+          }
+          fullComment.append(" */");
+          try (Closeable tr = out.open(TagName.TR)) {
+            try (Closeable th = out.open(
+                TagName.TH,
+                AttribName.CLASS, "comment",
+                AttribName.COLSPAN, "2")) {
+              out.text(fullComment.toString());
+            }
+          }
+        }
+        try (Closeable tr = out.open(TagName.TR)) {
+          try (Closeable th = out.open(
+              TagName.TH, AttribName.ID, anchorId, AttribName.CLASS, "def")) {
+            out.text(decoratedName);
+          }
+          try (Closeable th = out.open(TagName.TH)) {
+            out.text(":=");
+          }
+          try (Closeable th = out.open(TagName.TD)) {
+            unmarkedBody.or(body).visualize(DetailLevel.LONG, out);
+          }
+          if (it.hasNext()) {
+            out.text(";");
+          }
+        }
+        if (it.hasNext()) {
+          out.text("\n");
+        }
+      }
+    }
+  }
+
+
+  private static Optional<Combinator> stripMarkersFromBody(
+      ProdName name, Combinator c) {
+    if (c instanceof SeqCombinator) {
+      SeqCombinator seq = (SeqCombinator) c;
+      if (seq.first instanceof AppendOutputCombinator) {
+        AppendOutputCombinator startMarker = (AppendOutputCombinator) seq.first;
+        if (startMarker.output instanceof Boundary) {
+          Boundary boundary = (Boundary) startMarker.output;
+          if (boundary.side == Side.LEFT
+              && boundary.prodName.equals(name)) {
+            return stripEndMarkerFromBody(name, seq.second);
+          }
+        }
+      }
+    }
+    return Optional.absent();
+  }
+
+  private static Optional<Combinator> stripEndMarkerFromBody(
+      ProdName name, Combinator c) {
+    if (c instanceof AppendOutputCombinator) {
+      AppendOutputCombinator startMarker = (AppendOutputCombinator) c;
+      if (startMarker.output instanceof Boundary) {
+        Boundary boundary = (Boundary) startMarker.output;
+        if (boundary.side == Side.RIGHT
+            && boundary.prodName.equals(name)) {
+          return Optional.<Combinator>of(EmptyCombinator.INSTANCE);
+        }
+      }
+    } else if (c instanceof SeqCombinator) {
+      SeqCombinator seq = (SeqCombinator) c;
+      Optional<Combinator> stripped = stripEndMarkerFromBody(name, seq.second);
+      if (stripped.isPresent()) {
+        Combinator newSecond = stripped.get();
+        if (newSecond == EmptyCombinator.INSTANCE) {
+          return Optional.of(seq.first);
+        } else {
+          return Optional.of(seq.unfold(
+              seq.getMetadata(), Functions.<ProdName>identity(),
+              ImmutableList.of(seq.first, newSecond)));
+        }
+      }
+    }
+    return Optional.absent();
+  }
 }
 
 
@@ -327,11 +499,15 @@ final class Production {
   final Combinator body;
   final Combinator bodyAtEndOfInput;
   final Combinator refBeforeAnyCharacter;
+  final Optional<String> docComment;
 
-  Production(ProdName name, Combinator body, Combinators c) {
+  Production(
+      ProdName name, Combinator body, Combinators c,
+      Optional<String> docComment) {
     this.body = body;
     this.bodyAtEndOfInput = c.seq(body, c.endOfInput());
     this.refBeforeAnyCharacter = c.seq(c.ref(name), c.la(c.anyChar()));
+    this.docComment = docComment;
   }
 
   static final Function<Production, Combinator> BODY_OF =
@@ -350,23 +526,48 @@ final class Production {
 final class Def {
   final Combinator c;
   final Optional<ProdName> prefixOpt;
+  private Optional<String> docComment;
+  private boolean bounded;
 
-  Def(Combinator c, ProdName prefix) {
+  Def(Combinator c, Optional<ProdName> prefix, Optional<String> docComment) {
     this.c = c;
-    this.prefixOpt = Optional.of(prefix);
+    this.prefixOpt = prefix;
+    this.docComment = docComment;
   }
 
-  Def(Combinator c) {
-    this.c = c;
-    this.prefixOpt = Optional.absent();
+  void setBounded(boolean newBounded) {
+    this.bounded = newBounded;
   }
 
-  Combinator toCombinator(Function<NodeMetadata, NodeMetadata> mapMeta) {
+  void setDocComment(Optional<String> newDocComment) {
+    if (newDocComment.isPresent() && newDocComment.get().contains("*/")) {
+      throw new IllegalArgumentException(newDocComment.toString());
+    }
+    this.docComment = newDocComment;
+  }
+
+  Optional<String> getDocComment() {
+    return docComment;
+  }
+
+  Combinator toCombinator(
+      ProdName name, Function<NodeMetadata, NodeMetadata> mapMeta) {
     Function<ProdName, ProdName> mapName = Functions.identity();
     if (prefixOpt.isPresent()) {
       mapName = new PrefixIfNoDot(prefixOpt.get());
     }
-    return mapCombinatorDeep(mapMeta, mapName, c);
+
+    Supplier<NodeMetadata> mds = Suppliers.ofInstance(c.getMetadata());
+    Combinators combinators = Combinators.using(mds);
+
+    Combinator body = c;
+    if (bounded) {
+      body = combinators.seq(
+          new AppendOutputCombinator(mds, new Boundary(Side.LEFT, name)),
+          body,
+          new AppendOutputCombinator(mds, new Boundary(Side.RIGHT, name)));
+    }
+    return mapCombinatorDeep(mapMeta, mapName, body);
   }
 
   static Combinator mapCombinatorDeep(

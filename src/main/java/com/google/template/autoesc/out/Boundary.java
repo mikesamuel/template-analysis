@@ -49,7 +49,11 @@ public final class Boundary extends BinaryOutput {
   @Override
   protected void visualizeBody(DetailLevel lvl, VizOutput out)
   throws IOException {
-    out.text(side == Side.LEFT ? prodName.text : "/" + prodName.text);
+    StringBuilder sb = new StringBuilder();
+    sb.append(side == Side.LEFT ? "<" : "</");
+    sb.append(prodName.text);
+    sb.append(">");
+    out.text(sb.toString());
   }
 
   @SuppressFBWarnings(

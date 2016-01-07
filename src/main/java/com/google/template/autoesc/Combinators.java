@@ -1,7 +1,6 @@
 package com.google.template.autoesc;
 
 import com.google.template.autoesc.combimpl.AppendOutputCombinator;
-import com.google.template.autoesc.combimpl.BoundedReferenceCombinator;
 import com.google.template.autoesc.combimpl.CharSetCombinator;
 import com.google.template.autoesc.combimpl.EmbedCombinator;
 import com.google.template.autoesc.combimpl.EmptyCombinator;
@@ -19,7 +18,6 @@ import com.google.template.autoesc.inp.Source;
 import com.google.template.autoesc.inp.StringTransform;
 import com.google.template.autoesc.inp.StringTransforms;
 import com.google.template.autoesc.inp.UniRanges;
-import com.google.template.autoesc.out.Boundary;
 import com.google.template.autoesc.out.LimitCheck;
 import com.google.template.autoesc.out.Output;
 import com.google.template.autoesc.out.Side;
@@ -284,7 +282,7 @@ public class Combinators {
    * @see StringTransforms
    */
   public Combinator embed(Combinator body, StringTransform xform) {
-    // TODO: automatically wrap in body in (... / bref("Malformed")) so that
+    // TODO: automatically wrap body in (... / ref("Malformed")) so that
     // failure in the embedded grammar does not translate to failure in the
     // embedding grammar.
     return new EmbedCombinator(mds, body, xform);
@@ -325,28 +323,6 @@ public class Combinators {
    */
   public Combinator ref(ProdName name) {
     return new ReferenceCombinator(mds, name);
-  }
-
-  /**
-   * A <i>bounded</i> reference that matches just like a {@link #ref} but which
-   * surrounds any output appended by the named non-terminal's body with
-   * {@link Boundary} markers.
-   */
-  public Combinator bref(String name) {
-    return bref(new ProdName(name));
-  }
-
-  /**
-   * A <i>bounded</i> reference that matches just like a {@link #ref} but which
-   * surrounds any output appended by the named non-terminal's body with
-   * {@link Boundary} markers.
-   */
-  public Combinator bref(ProdName name) {
-    // We could phrase this in terms of a concatenation of
-    // AppendOutputs with left and right boundary around ref(name),
-    // but that makes debugging output spammy.
-    // Instead of seeing X, the debug output looks like {X} X {/X}.
-    return new BoundedReferenceCombinator(mds, name);
   }
 
   /**

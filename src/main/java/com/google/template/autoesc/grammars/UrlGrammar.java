@@ -83,7 +83,7 @@ public final class UrlGrammar extends GrammarFactory {
                     until(
                         ref("UrlBody"),
                         chars('#')),
-                    opt(bref("Fragment"))))
+                    opt(ref("Fragment"))))
             );
         lang.define("UrlBody",
             decl(
@@ -94,7 +94,7 @@ public final class UrlGrammar extends GrammarFactory {
                         seq(
                             // Either we have a protocol, or it is none.
                             or(
-                                bref("Protocol"),
+                                ref("Protocol"),
                                 set(PROTOCOL, ProtocolT._NONE)),
                             or(
                                 // If we have no protocol, we may still have
@@ -122,21 +122,23 @@ public final class UrlGrammar extends GrammarFactory {
                     or(
                         seq(
                             has(PATH_RESTRICTION, PathKindT.OPAQUE),
-                            bref("OpaqueBody")
+                            ref("OpaqueBody")
                             ),
                         seq(
-                            opt(bref("Path")),
-                            opt(bref("Query")))
+                            opt(ref("Path")),
+                            opt(ref("Query")))
                     )
                 )
-            ));
+            ))
+            .unbounded();
 
         lang.define("ProtocolRelative", seq(
             notIn(PROTOCOL, KNOWN_OPAQUE_PROTOCOLS),
             lit("//"),
-            opt(bref("Authority")),
+            opt(ref("Authority")),
             set(PATH_RESTRICTION, ImmutableSet.of(PathKindT.ABSOLUTE))
-            ));
+            ))
+            .unbounded();
 
         // scheme      = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
         lang.define("Protocol", or(
@@ -191,12 +193,13 @@ public final class UrlGrammar extends GrammarFactory {
             lit("#"),
             star(anyChar())));
         lang.define("PathSegment", seq(
-            plus(invChars('/', '#', '?'))));
+            plus(invChars('/', '#', '?'))))
+            .unbounded();
 
         lang.define("OpaqueBody", or(
             seq(
                 in(PROTOCOL, ProtocolT.JAVASCRIPT),
-                bref("Js.Program")
+                ref("Js.Program")
                 ),
             seq(
                 notIn(PROTOCOL, ProtocolT.JAVASCRIPT),

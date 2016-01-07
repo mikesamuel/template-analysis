@@ -50,7 +50,7 @@ public final class AppendOutputCombinator extends AtomicCombinator {
       case ENTER:
         return ImmutableList.of(ParseDelta.pass().withOutput(output).build());
       case EXIT_FAIL:
-        case EXIT_PASS:
+      case EXIT_PASS:
         break;
     }
     throw new AssertionError(tt);

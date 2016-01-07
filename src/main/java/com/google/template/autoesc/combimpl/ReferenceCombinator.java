@@ -28,7 +28,7 @@ import com.google.template.autoesc.viz.VizOutput;
  * A reference to a non-terminal defined in
  * {@link com.google.template.autoesc.Language}.
  */
-public class ReferenceCombinator extends AtomicCombinator {
+public final class ReferenceCombinator extends AtomicCombinator {
   /** The name of the referenced non-terminal. */
   public final ProdName name;
 
@@ -45,18 +45,9 @@ public class ReferenceCombinator extends AtomicCombinator {
     if (newName.equals(name) && newMetadata.equals(md)) {
       return this;
     } else {
-      ReferenceCombinator renamed = makeInstanceOfSameClass(
-          newMetadata, newName);
-      assert renamed.getClass() == this.getClass();
-      return renamed;
+      return new ReferenceCombinator(
+          Suppliers.ofInstance(newMetadata), newName);
     }
-  }
-
-  @SuppressWarnings("static-method")  // Overridden in sub-class
-  protected ReferenceCombinator makeInstanceOfSameClass(
-      NodeMetadata newMetadata, ProdName newName) {
-    return new ReferenceCombinator(
-        Suppliers.ofInstance(newMetadata), newName);
   }
 
   @Override

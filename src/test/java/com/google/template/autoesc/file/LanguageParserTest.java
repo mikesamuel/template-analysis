@@ -1,13 +1,11 @@
 package com.google.template.autoesc.file;
 
-import java.io.IOException;
 import java.util.List;
 
 import org.junit.Test;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.template.autoesc.Combinator;
 import com.google.template.autoesc.Combinators;
@@ -263,14 +261,11 @@ public final class LanguageParserTest extends TestCase {
   }
 
   @Test
-  public static void testBoundedReference() {
-    Combinators combinators = Combinators.get();
+  public static void testBoundedDefinition() {
+    Language lang = parse("<P> := [x]").build();
     assertEqualCombinators(
-        combinators.seq(
-            combinators.chars('x'),
-            combinators.opt(
-                combinators.bref(new ProdName("P")))),
-        "[x] <P>?");
+        lang.get(new ProdName("P")),
+        "{<P>} [x] {</P>}");
   }
 
   @Test
@@ -411,39 +406,7 @@ public final class LanguageParserTest extends TestCase {
   }
 
   private static String languageToString(Language lang) {
-    try {
-      StringBuilder sb = new StringBuilder();
-      TextVizOutput viz = new TextVizOutput(sb);
-
-      // Write the default start first so that the builder realizes it as such.
-      ProdName startProdName = lang.defaultStartProdName;
-      viz.text(startProdName.text);
-      viz.text(" := ");
-      lang.get(startProdName).visualize(DetailLevel.LONG, viz);
-      viz.text(";");
-      viz.text("\n");
-
-      for (ImmutableMap.Entry<ProdName, Combinator> e
-          : lang.byName().entrySet()) {
-        ProdName name = e.getKey();
-        if (startProdName.equals(name)) {
-          // Written above
-          continue;
-        }
-        if (name.text.contains(".")) {
-          // Imported.
-          continue;
-        }
-        viz.text(name.text);
-        viz.text(" := ");
-        e.getValue().visualize(DetailLevel.LONG, viz);
-        viz.text(";");
-        viz.text("\n");
-      }
-      return sb.toString();
-    } catch (IOException ex) {
-      throw new AssertionError(ex);
-    }
+    return TextVizOutput.vizToString(lang, DetailLevel.SHORT);
   }
 
   @Test

@@ -11,4 +11,6 @@ public enum AttribName {
   CLASS,
   /** */
   HREF,
+  /** */
+  COLSPAN,
 }

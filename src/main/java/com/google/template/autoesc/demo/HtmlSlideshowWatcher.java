@@ -3,7 +3,6 @@ package com.google.template.autoesc.demo;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.URL;
-import java.util.Map;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
@@ -15,7 +14,6 @@ import com.google.template.autoesc.Combinator;
 import com.google.template.autoesc.Completion;
 import com.google.template.autoesc.Parse;
 import com.google.template.autoesc.ParseWatcher;
-import com.google.template.autoesc.ProdName;
 import com.google.template.autoesc.out.Output;
 import com.google.template.autoesc.viz.DetailLevel;
 import com.google.template.autoesc.viz.VizOutput;
@@ -88,26 +86,7 @@ public final class HtmlSlideshowWatcher implements ParseWatcher {
       out.append("<body>\n");
 
       out.append("  <table><tr valign=top colspan=2><td width=50%>");
-      try (Closeable tbl = vizOut.open(
-              TABLE, ID, "grammar", CLASS, "grammar")) {
-        for (Map.Entry<ProdName, Combinator> production
-            : p.lang.byName().entrySet()) {
-          ProdName name = production.getKey();
-          String anchorId = "def:" + name;  // See ReferenceCombinator
-          try (Closeable tr = vizOut.open(TR)) {
-            try (Closeable th = vizOut.open(TH, ID, anchorId, CLASS, "def")) {
-              vizOut.text(name.text);
-            }
-            try (Closeable th = vizOut.open(TH)) {
-              vizOut.text("::==");
-            }
-            Combinator body = production.getValue();
-            try (Closeable th = vizOut.open(TD)) {
-              body.visualize(DetailLevel.LONG, vizOut);
-            }
-          }
-        }
-      }
+      p.lang.visualize(DetailLevel.LONG, vizOut);
       out.append("</td>\n<td width=50%><ul id=\"parse-log\">\n");
     } catch (IOException ex) {
       ioHandler.apply(ex);

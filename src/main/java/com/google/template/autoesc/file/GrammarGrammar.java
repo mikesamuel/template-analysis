@@ -8,8 +8,6 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
-import javax.annotation.Nullable;
-
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -22,10 +20,16 @@ import com.google.template.autoesc.Language;
 import com.google.template.autoesc.Combinator;
 import com.google.template.autoesc.Combinators;
 import com.google.template.autoesc.ProdName;
+import com.google.template.autoesc.combimpl.AppendOutputCombinator;
 import com.google.template.autoesc.demo.DemoServerQuery;
+import com.google.template.autoesc.file.TreeProcessor.ProdKey;
+import com.google.template.autoesc.file.TreeProcessor.ProdKind;
+import com.google.template.autoesc.file.TreeProcessor.Production;
 import com.google.template.autoesc.inp.StringTransform;
 import com.google.template.autoesc.inp.StringTransforms;
 import com.google.template.autoesc.inp.UniRanges;
+import com.google.template.autoesc.out.Boundary;
+import com.google.template.autoesc.out.Side;
 import com.google.template.autoesc.var.MultiVariable;
 import com.google.template.autoesc.var.RawTypeGuard;
 import com.google.template.autoesc.var.SetTypeGuard;
@@ -44,7 +48,6 @@ public final class GrammarGrammar {
 
   static final ProdName N_ANY_CHAR = new ProdName("AnyChar");
   static final ProdName N_ATOM_NODE = new ProdName("AtomNode");
-  static final ProdName N_BOUNDED_REFERENCE = new ProdName("BoundedReference");
   static final ProdName N_CHAR_RANGE = new ProdName("CharRange");
   static final ProdName N_CHAR_RANGE_ENDPOINT =
       new ProdName("CharRangeEndpoint");
@@ -57,6 +60,8 @@ public final class GrammarGrammar {
   static final ProdName N_CURLY_BLOCK = new ProdName("CurlyBlock");
   static final ProdName N_CURLY_ASSIGN = new ProdName("CurlyAssign");
   static final ProdName N_CURLY_IF = new ProdName("CurlyIf");
+  static final ProdName N_CURLY_MARKER = new ProdName("CurlyMarker");
+  static final ProdName N_CURLY_MARKER_SIDE = new ProdName("CurlyMarkerSide");
   static final ProdName N_CURLY_VAR = new ProdName("CurlyVar");
   static final ProdName N_DOC_COMMENT = new ProdName("DocComment");
   static final ProdName N_EMBED = new ProdName("Embed");
@@ -78,6 +83,8 @@ public final class GrammarGrammar {
   static final ProdName N_OR_NODE = new ProdName("OrNode");
   static final ProdName N_PAREN_BLOCK = new ProdName("ParenBlock");
   static final ProdName N_PROD = new ProdName("Prod");
+  static final ProdName N_PROD_MARKED = new ProdName("ProdMarked");
+  static final ProdName N_PROD_NAME = new ProdName("ProdName");
   static final ProdName N_REFERENCE = new ProdName("Reference");
   static final ProdName N_SEQ_NODE = new ProdName("SeqNode");
   static final ProdName N_SPACE = new ProdName("Space");
@@ -136,13 +143,12 @@ public final class GrammarGrammar {
       final Language.Builder lang = new Language.Builder();
       final ImmutableMap.Builder<ProdName, OutputProcessor<?>> processors =
           ImmutableMap.builder();
-      void define(
-          ProdName name, Combinator c,
-          @Nullable OutputProcessor<?> p) {
+      void define(ProdName name, Combinator c, OutputProcessor<?> p) {
         lang.define(name, c);
-        if (p != null) {
-          processors.put(name, p);
-        }
+        processors.put(name, p);
+      }
+      void defineUnbounded(ProdName name, Combinator c) {
+        lang.define(name, c).unbounded();
       }
     }
     Builder b = new Builder();
@@ -161,17 +167,12 @@ public final class GrammarGrammar {
           @Override
           Optional<ImmutableList<Production>> post(
               ImmutableList<Object> children, TreeProcessor t) {
-            ImmutableList.Builder<Production> prods = ImmutableList.builder();
-            for (Object o : children) {
-              prods.add((Production) o);
-            }
-            return Optional.of(prods.build());
+            return Optional.of(runtimeCastList(children, Production.class));
           }
         });
-    b.define(
+    b.defineUnbounded(
         N_IGN,
-        c.or(c.bref(N_DOC_COMMENT), c.ref(N_COMMENT), c.ref(N_SPACE)),
-        null);
+        c.or(c.ref(N_DOC_COMMENT), c.ref(N_COMMENT), c.ref(N_SPACE)));
     b.define(
         N_DOC_COMMENT,
         c.seq(
@@ -187,7 +188,7 @@ public final class GrammarGrammar {
             return Optional.absent();
           }
         });
-    b.define(
+    b.defineUnbounded(
         N_COMMENT,
         c.or(
             c.seq(
@@ -198,9 +199,8 @@ public final class GrammarGrammar {
             c.seq(
                 c.lit("//"),
                 c.star(c.invChars('\n', '\r')))
-            ),
-        null);
-    b.define(
+            ));
+    b.defineUnbounded(
         N_COMMENT_BODY,
         c.star(
             c.or(
@@ -208,16 +208,13 @@ public final class GrammarGrammar {
                 c.plus(
                     c.seq(
                         c.chars('*'),
-                        c.not(c.chars('/')))))),
-        null);
-    b.define(
+                        c.not(c.chars('/')))))));
+    b.defineUnbounded(
         N_IGNS,
-        c.star(c.ref(N_IGN)),
-        null);
-    b.define(
+        c.star(c.ref(N_IGN)));
+    b.defineUnbounded(
         N_TOP_LEVEL,
-        c.or(c.bref(N_PROD), c.ref(N_IGNS)),
-        null);
+        c.or(c.ref(N_PROD), c.ref(N_IGNS)));
     b.define(
         N_NAME,
         c.seq(
@@ -234,21 +231,54 @@ public final class GrammarGrammar {
             return Optional.of(new ProdName(s));
           }
         });
-    b.define(
+    b.defineUnbounded(
         N_NAME_PART,
         c.chars(UniRanges.union(
             UniRanges.btw('A', 'Z'), UniRanges.btw('a', 'z'),
             UniRanges.btw('0', '9'), UniRanges.of('_'), UniRanges.of('$')
-            )),
-        null);
+            )));
+    b.define(
+        N_PROD_NAME,
+        c.or(
+            c.seq(c.lit("<"), c.ref(N_NAME), c.lit(">"), c.ref(N_PROD_MARKED)),
+            c.ref(N_NAME)),
+        new OutputProcessor<ProdKey>() {
+          @Override
+          Optional<ProdKey> post(
+              ImmutableList<Object> children, TreeProcessor t) {
+            ProdKind kind;
+            switch (children.size()) {
+              case 1:
+                kind = ProdKind.UNMARKED;
+                break;
+              case 2:
+                kind = (ProdKind) children.get(1);
+                break;
+              default:
+                throw new AssertionError(children.size());
+            }
+            return Optional.of(new ProdKey(
+                t.consumeDocComment(), (ProdName) children.get(0), kind));
+          }
+        });
+    b.define(
+        N_PROD_MARKED,
+        Combinators.empty(),
+        new OutputProcessor<ProdKind>() {
+          @Override
+          Optional<ProdKind> post(
+              ImmutableList<Object> children, TreeProcessor t) {
+            return Optional.of(ProdKind.MARKED);
+          }
+        });
     b.define(
         N_PROD,
         c.seq(
-            c.bref(N_NAME),
+            c.ref(N_PROD_NAME),
             c.ref(N_IGNS),
             c.lit(":="),
             c.ref(N_IGNS),
-            c.bref(N_OR_NODE),
+            c.ref(N_OR_NODE),
             c.ref(N_IGNS),
             c.opt(c.or(c.lit(";"), c.endOfInput()))
             ),
@@ -259,19 +289,19 @@ public final class GrammarGrammar {
             Preconditions.checkArgument(children.size() == 2);
             return Optional.of(
                 new Production(
-                    (ProdName) children.get(0),
+                    (ProdKey) children.get(0),
                     (Combinator) children.get(1)));
           }
         });
     b.define(
         N_OR_NODE,
         c.seq(
-            c.bref(N_SEQ_NODE),
+            c.ref(N_SEQ_NODE),
             c.star(c.seq(
                 c.ref(N_IGNS),
                 c.lit("/"),
                 c.ref(N_IGNS),
-                c.bref(N_SEQ_NODE)))),
+                c.ref(N_SEQ_NODE)))),
         new OutputProcessor<Combinator>() {
           @Override
           Optional<Combinator> post(
@@ -286,7 +316,7 @@ public final class GrammarGrammar {
             // The zero token string is a valid sequence node.
             c.star(c.seq(
                 c.ref(N_IGNS),
-                c.bref(N_SUFFIX_NODE)))),
+                c.ref(N_SUFFIX_NODE)))),
         new OutputProcessor<Combinator>() {
           @Override
           Optional<Combinator> post(
@@ -302,9 +332,9 @@ public final class GrammarGrammar {
     b.define(
         N_SUFFIX_NODE,
         c.seq(
-            c.bref(N_ATOM_NODE),
+            c.ref(N_ATOM_NODE),
             c.ref(N_IGNS),
-            c.opt(c.bref(N_SUFFIX))),
+            c.opt(c.ref(N_SUFFIX))),
         new OutputProcessor<Combinator>() {
           @Override
           Optional<Combinator> post(
@@ -328,29 +358,26 @@ public final class GrammarGrammar {
             throw new AssertionError(suffix);
           }
         });
-    b.define(
+    b.defineUnbounded(
         N_ATOM_NODE,
         c.or(
-            c.bref(N_PAREN_BLOCK),
-            c.bref(N_CURLY_BLOCK),
-            c.bref(N_LIT_NODE),
-            c.bref(N_CHAR_SET_NODE),
-            c.bref(N_ANY_CHAR),
-            c.bref(N_END_OF_FILE),
-            c.bref(N_REFERENCE),
-            c.bref(N_BOUNDED_REFERENCE)
-            ),
-        null);
+            c.ref(N_PAREN_BLOCK),
+            c.ref(N_CURLY_BLOCK),
+            c.ref(N_LIT_NODE),
+            c.ref(N_CHAR_SET_NODE),
+            c.ref(N_ANY_CHAR),
+            c.ref(N_END_OF_FILE),
+            c.ref(N_REFERENCE)));
     b.define(
         N_LIT_NODE,
         c.or(
             c.seq(
                 c.chars('"'),
-                c.star(c.or(c.bref(N_ESC), c.bref(N_LIT_CHAR))),
+                c.star(c.or(c.ref(N_ESC), c.ref(N_LIT_CHAR))),
                 c.chars('"')),
             c.seq(
                 c.chars('\u201c'),
-                c.star(c.or(c.bref(N_ESC), c.bref(N_LIT_CHAR))),
+                c.star(c.or(c.ref(N_ESC), c.ref(N_LIT_CHAR))),
                 c.chars('\u201d'))),
         new OutputProcessor<Combinator>() {
           @Override
@@ -374,7 +401,8 @@ public final class GrammarGrammar {
             return Optional.of(Integer.valueOf(s.codePointAt(0)));
           }
         });
-    b.define(N_ESC,
+    b.define(
+        N_ESC,
         c.seq(
             c.chars('\\'),
             c.or(
@@ -430,12 +458,12 @@ public final class GrammarGrammar {
           }
         });
     b.define(
-        N_CHAR_SET_NODE, c.seq(
+        N_CHAR_SET_NODE,
+        c.seq(
             c.lit("["),
-            c.bref(N_INV_MARKER),
-            c.star(c.bref(N_CHAR_SET_PART)),
-            c.lit("]")
-            ),
+            c.ref(N_INV_MARKER),
+            c.star(c.ref(N_CHAR_SET_PART)),
+            c.lit("]")),
         new OutputProcessor<Combinator>() {
           @Override
           Optional<Combinator> post(
@@ -459,7 +487,7 @@ public final class GrammarGrammar {
         });
     b.define(
         N_CHAR_SET_NAME,
-        c.seq(c.bref(N_NAME)),
+        c.seq(c.ref(N_NAME)),
         new OutputProcessor<ImmutableRangeSet<Integer>>() {
           @Override
           Optional<ImmutableRangeSet<Integer>> post(
@@ -469,7 +497,8 @@ public final class GrammarGrammar {
           }
         });
     b.define(
-        N_ANY_CHAR, c.lit("."),
+        N_ANY_CHAR,
+        c.lit("."),
         new OutputProcessor<Combinator>() {
           @Override
           Optional<Combinator> post(
@@ -478,7 +507,8 @@ public final class GrammarGrammar {
           }
         });
     b.define(
-        N_END_OF_FILE, c.lit("$"),
+        N_END_OF_FILE,
+        c.lit("$"),
         new OutputProcessor<Combinator>() {
           @Override
           Optional<Combinator> post(
@@ -489,11 +519,11 @@ public final class GrammarGrammar {
     b.define(
         N_REFERENCE,
         c.seq(
-            c.bref(N_NAME),
+            c.ref(N_NAME),
             c.star(
                 c.seq(
                     c.lit("."),
-                    c.bref(N_NAME)))),
+                    c.ref(N_NAME)))),
         new OutputProcessor<Combinator>() {
           @Override
           Optional<Combinator> post(
@@ -516,40 +546,24 @@ public final class GrammarGrammar {
           }
         });
     b.define(
-        N_BOUNDED_REFERENCE,
-        c.seq(
-            c.lit("<"),
-            c.bref(N_NAME),
-            c.lit(">")),
-        new OutputProcessor<Combinator>() {
-          @Override
-          Optional<Combinator> post(
-              ImmutableList<Object> children, TreeProcessor t) {
-            return Optional.of(t.combinators.bref((ProdName) children.get(0)));
-          }
-        });
-    b.define(
         N_LOOKAHEAD_KIND, c.lits("?=", "?!", ""), STRING_IDENTITY);
     b.define(
         N_PAREN_BLOCK,
         c.seq(
             c.lit("("),
-            c.bref(N_LOOKAHEAD_KIND),
+            c.ref(N_LOOKAHEAD_KIND),
             c.ref(N_IGNS),
             c.opt(
                 c.seq(
-                    c.bref(N_EMBED),
-                    c.ref(N_IGNS)
-                    )
-                ),
-            c.bref(N_OR_NODE),
-            c.ref(N_IGNS),
-            c.opt(
-                c.seq(
-                    c.bref(N_UNTIL),
+                    c.ref(N_EMBED),
                     c.ref(N_IGNS))),
-            c.lit(")")
-            ),
+            c.ref(N_OR_NODE),
+            c.ref(N_IGNS),
+            c.opt(
+                c.seq(
+                    c.ref(N_UNTIL),
+                    c.ref(N_IGNS))),
+            c.lit(")")),
         new OutputProcessor<Combinator>() {
           @Override
           Optional<Combinator> post(
@@ -598,7 +612,7 @@ public final class GrammarGrammar {
             c.lit("embed"),
             c.not(c.ref(N_NAME_PART)),
             c.ref(N_IGNS),
-            c.bref(N_NAME),
+            c.ref(N_NAME),
             c.ref(N_IGNS),
             c.chars(':')),
         new OutputProcessor<StringTransform>() {
@@ -615,27 +629,26 @@ public final class GrammarGrammar {
             }
           }
         });
-    b.define(
+    b.defineUnbounded(
         N_UNTIL,
         c.seq(
             c.lit(":until"),
             c.ref(N_IGNS),
-            c.bref(N_OR_NODE)),
-        null);
-    b.define(
+            c.ref(N_OR_NODE)));
+    b.defineUnbounded(
         N_CURLY_BLOCK,
         c.or(
-            c.bref(N_CURLY_IF),
-            c.bref(N_CURLY_VAR),
-            c.bref(N_CURLY_ASSIGN)),
-        null);
+            c.ref(N_CURLY_IF),
+            c.ref(N_CURLY_VAR),
+            c.ref(N_CURLY_MARKER),
+            c.ref(N_CURLY_ASSIGN)));
     b.define(
         N_CURLY_VAR,
         c.seq(
             c.lit("{var"),
             c.not(c.ref(N_NAME_PART)),
             c.ref(N_IGNS),
-            c.bref(N_VAR),
+            c.ref(N_VAR),
             c.ref(N_IGNS),
             c.lit("}"),
             c.ref(N_IGNS),
@@ -654,17 +667,51 @@ public final class GrammarGrammar {
           }
         });
     b.define(
+        N_CURLY_MARKER,
+        c.seq(
+            c.lit("{<"),
+            c.ref(N_CURLY_MARKER_SIDE),
+            c.ref(N_NAME),
+            c.lit(">}")),
+        new OutputProcessor<Combinator>() {
+          @Override
+          Optional<Combinator> post(
+              ImmutableList<Object> children, TreeProcessor t) {
+            String sideText = (String) children.get(0);
+            ProdName name = (ProdName) children.get(1);
+            Side side;
+            switch (sideText) {
+              case "":
+                side = Side.LEFT;
+                break;
+              case "/":
+                side = Side.RIGHT;
+                break;
+                default:
+                  throw new AssertionError(sideText);
+            }
+            Boundary boundary = new Boundary(side, name);
+            return Optional.<Combinator>of(
+                new AppendOutputCombinator(
+                    t.metadataSupplier, boundary));
+          }
+        });
+    b.define(
+        N_CURLY_MARKER_SIDE,
+        c.opt(c.lit("/")),
+        STRING_IDENTITY);
+    b.define(
         N_VAR,
         c.seq(
-            c.bref(N_NAME),
+            c.ref(N_NAME),
             c.ref(N_IGNS),
             c.opt(
                 c.seq(
                     c.lit(":"),
                     c.ref(N_IGNS),
-                    c.bref(N_NAME),
+                    c.ref(N_NAME),
                     c.ref(N_IGNS),
-                    c.bref(N_VAR_TYPE_VARIANT)))),
+                    c.ref(N_VAR_TYPE_VARIANT)))),
         new OutputProcessor<Variable<?>>() {
           @Override
           Optional<Variable<?>> post(
@@ -724,11 +771,11 @@ public final class GrammarGrammar {
             c.lit("{if"),
             c.not(c.ref(N_NAME_PART)),
             c.ref(N_IGNS),
-            c.bref(N_VAR),
+            c.ref(N_VAR),
             c.ref(N_IGNS),
-            c.bref(N_VAR_TEST),
+            c.ref(N_VAR_TEST),
             c.ref(N_IGNS),
-            c.bref(N_VAR_VALUES),
+            c.ref(N_VAR_VALUES),
             c.ref(N_IGNS),
             c.lit("}")),
         new OutputProcessor<Combinator>() {
@@ -794,43 +841,42 @@ public final class GrammarGrammar {
             }
           }
         });
-    b.define(
+    b.defineUnbounded(
         N_VAR_VALUES,
         c.opt(
             c.seq(
-                c.bref(N_VAR_VALUE),
+                c.ref(N_VAR_VALUE),
                 c.ref(N_IGNS),
                 c.star(
                     c.seq(
                         c.lit(","),
                         c.ref(N_IGNS),
-                        c.bref(N_VAR_VALUE))),
+                        c.ref(N_VAR_VALUE))),
                 c.ref(N_IGNS),
-                c.opt(c.lit(",")))),
-        null);
-    b.define(
+                c.opt(c.lit(",")))));
+    b.defineUnbounded(
         N_VAR_VALUE,
         c.or(
-            c.bref(N_NAME),
+            c.ref(N_NAME),
             c.seq(
                 c.chars('('),
                 c.ref(N_IGNS),
-                c.bref(N_VAR_VALUES),
+                c.ref(N_VAR_VALUES),
                 c.ref(N_IGNS),
-                c.chars(')'))),
+                c.chars(')')))
         // TODO: There's currently no case where flattening values is incorrect,
         // but this seems dodgy.
-        null);
+        );
     b.define(
         N_CURLY_ASSIGN,
         c.seq(
             c.lit("{"),
             c.ref(N_IGNS),
-            c.bref(N_VAR),
+            c.ref(N_VAR),
             c.ref(N_IGNS),
             c.lit("="),
             c.ref(N_IGNS),
-            c.bref(N_VAR_VALUES),
+            c.ref(N_VAR_VALUES),
             c.ref(N_IGNS),
             c.lit("}")),
         new OutputProcessor<Combinator>() {
@@ -854,19 +900,18 @@ public final class GrammarGrammar {
           }
         });
     b.define(N_INV_MARKER, c.opt(c.chars('^')), STRING_IDENTITY);
-    b.define(
+    b.defineUnbounded(
         N_CHAR_SET_PART,
         c.or(
-            c.seq(c.lit("[:"), c.bref(N_CHAR_SET_NAME), c.lit(":]")),
-            c.bref(N_CHAR_RANGE)),
-        null);
+            c.seq(c.lit("[:"), c.ref(N_CHAR_SET_NAME), c.lit(":]")),
+            c.ref(N_CHAR_RANGE)));
     b.define(
         N_CHAR_RANGE,
         c.seq(
-            c.bref(N_CHAR_RANGE_ENDPOINT),
+            c.ref(N_CHAR_RANGE_ENDPOINT),
             c.opt(c.seq(
                 c.lit("-"),
-                c.bref(N_CHAR_RANGE_ENDPOINT)))
+                c.ref(N_CHAR_RANGE_ENDPOINT)))
             ),
         new OutputProcessor<ImmutableRangeSet<Integer>>() {
           @Override
@@ -890,12 +935,11 @@ public final class GrammarGrammar {
             throw new AssertionError("" + children.size());
           }
         });
-    b.define(
+    b.defineUnbounded(
         N_CHAR_RANGE_ENDPOINT,
         c.or(
-            c.bref(N_ESC),
-            c.bref(N_CHAR_SET_CHAR)),
-        null);
+            c.ref(N_ESC),
+            c.ref(N_CHAR_SET_CHAR)));
     b.define(
         N_CHAR_SET_CHAR,
         c.invChars('-', '^', ']', '\\', '\r', '\n'),
@@ -906,15 +950,14 @@ public final class GrammarGrammar {
             return Optional.of(Integer.valueOf(s.codePointAt(0)));
           }
         });
-    b.define(N_SPACE, c.chars('\t', '\n', '\r', ' '), null);
-    b.define(
+    b.defineUnbounded(N_SPACE, c.chars('\t', '\n', '\r', ' '));
+    b.defineUnbounded(
         N_HEX,
         c.chars(UniRanges.union(
             UniRanges.btw('0', '9'),
-            UniRanges.btw('A', 'F'), UniRanges.btw('a', 'f'))),
-        null);
-    b.define(N_HEX2, c.seq(c.ref(N_HEX), c.ref(N_HEX)), null);
-    b.define(N_HEX4, c.seq(c.ref(N_HEX2), c.ref(N_HEX2)), null);
+            UniRanges.btw('A', 'F'), UniRanges.btw('a', 'f'))));
+    b.defineUnbounded(N_HEX2, c.seq(c.ref(N_HEX), c.ref(N_HEX)));
+    b.defineUnbounded(N_HEX4, c.seq(c.ref(N_HEX2), c.ref(N_HEX2)));
 
     LANG = b.lang.build().optimized();
     OUTPUT_PROCESSORS = b.processors.build();

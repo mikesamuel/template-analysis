@@ -30,20 +30,22 @@ public final class UrlGrammarTest extends AbstractGrammarTest {
   public void testAbsolute1() throws Exception {
     makeTest().withInput("http://www.google.com/")
         .expectOutput(
-              LFRAG
-            ,   lbnd("Protocol")
-            ,     str("http:")
-            ,     val(ProtocolT.HTTP)
-            ,   rbnd("Protocol")
-            ,   str("//")
-            ,   lbnd("Authority")
-            ,     str("www.google.com")
-            ,   rbnd("Authority")
-            ,   val(PathKindT.ABSOLUTE)
-            ,   lbnd("Path")
-            ,   str("/")
-            ,   rbnd("Path")
-            , RFRAG
+              lbnd("Url")
+            ,   LFRAG
+            ,     lbnd("Protocol")
+            ,       str("http:")
+            ,       val(ProtocolT.HTTP)
+            ,     rbnd("Protocol")
+            ,     str("//")
+            ,     lbnd("Authority")
+            ,       str("www.google.com")
+            ,     rbnd("Authority")
+            ,     val(PathKindT.ABSOLUTE)
+            ,     lbnd("Path")
+            ,       str("/")
+            ,     rbnd("Path")
+            ,   RFRAG
+            , rbnd("Url")
             )
         .run();
   }
@@ -52,20 +54,22 @@ public final class UrlGrammarTest extends AbstractGrammarTest {
   public void testProtocolRelative() throws Exception {
     makeTest().withInput("//www.google.com?q#a?b/c")
         .expectOutput(
-              LFRAG
-            ,   val(ProtocolT._NONE)
-            ,   str("//")
-            ,   lbnd("Authority")
-            ,     str("www.google.com")
-            ,   rbnd("Authority")
-            ,   val(PathKindT.ABSOLUTE)
-            ,   lbnd("Query")
-            ,     str("?q")
-            ,   rbnd("Query")
-            , RFRAG
-            , lbnd("Fragment")
-            ,   str("#a?b/c")
-            , rbnd("Fragment")
+              lbnd("Url")
+            ,   LFRAG
+            ,     val(ProtocolT._NONE)
+            ,     str("//")
+            ,     lbnd("Authority")
+            ,       str("www.google.com")
+            ,     rbnd("Authority")
+            ,     val(PathKindT.ABSOLUTE)
+            ,     lbnd("Query")
+            ,       str("?q")
+            ,     rbnd("Query")
+            ,   RFRAG
+            ,   lbnd("Fragment")
+            ,     str("#a?b/c")
+            ,   rbnd("Fragment")
+            , rbnd("Url")
             )
         .run();
   }
@@ -75,21 +79,31 @@ public final class UrlGrammarTest extends AbstractGrammarTest {
     makeTest().withInput("javascript://\u2028alert(42)//#foo")
         .filterOutputs(SKIP_JS_CONTEXT_VAR_OUTPUTS)
         .expectOutput(
-              LFRAG
-            ,   lbnd("Protocol")
-            ,     str("javascript:")
-            ,     val(ProtocolT.JAVASCRIPT)
-            ,   rbnd("Protocol")
-            ,   val(PathKindT.OPAQUE)
-            ,   lbnd("OpaqueBody")
-            ,     lbnd("Js.Program")
-            ,       str("//\u2028alert(42)//")
-            ,     rbnd("Js.Program")
-            ,   rbnd("OpaqueBody")
-            , RFRAG
-            , lbnd("Fragment")
-            ,   str("#foo")
-            , rbnd("Fragment")
+              lbnd("Url"),
+                LFRAG
+            ,     lbnd("Protocol")
+            ,       str("javascript:")
+            ,       val(ProtocolT.JAVASCRIPT)
+            ,     rbnd("Protocol")
+            ,     val(PathKindT.OPAQUE)
+            ,     lbnd("OpaqueBody")
+            ,       lbnd("Js.Program")
+            ,         str("//\u2028")
+            ,         lbnd("Js.IdentifierName")
+            ,           str("alert")
+            ,         rbnd("Js.IdentifierName")
+            ,         str("(")
+            ,         lbnd("Js.NumberLiteral")
+            ,           str("42")
+            ,         rbnd("Js.NumberLiteral")
+            ,         str(")//")
+            ,       rbnd("Js.Program")
+            ,     rbnd("OpaqueBody")
+            ,   RFRAG
+            ,   lbnd("Fragment")
+            ,     str("#foo")
+            ,   rbnd("Fragment")
+            , rbnd("Url")
             )
         .run();
   }
@@ -99,25 +113,31 @@ public final class UrlGrammarTest extends AbstractGrammarTest {
     makeTest().withInput("JavaScript://\u2029alert('Hey')//#")
         .filterOutputs(SKIP_JS_CONTEXT_VAR_OUTPUTS)
         .expectOutput(
-              LFRAG
-            ,   lbnd("Protocol")
-            ,     str("JavaScript:")
-            ,     val(ProtocolT.JAVASCRIPT)
-            ,   rbnd("Protocol")
-            ,   val(PathKindT.OPAQUE)
-            ,   lbnd("OpaqueBody")
-            ,     lbnd("Js.Program")
-            ,       str("//\u2029alert(")
-            ,       lbnd("Js.StringLiteral")
-            ,         str("'Hey'")
-            ,       rbnd("Js.StringLiteral")
-            ,       str(")//")
-            ,     rbnd("Js.Program")
-            ,   rbnd("OpaqueBody")
-            , RFRAG
-            , lbnd("Fragment")
-            ,   str("#")
-            , rbnd("Fragment")
+              lbnd("Url")
+            ,   LFRAG
+            ,     lbnd("Protocol")
+            ,       str("JavaScript:")
+            ,       val(ProtocolT.JAVASCRIPT)
+            ,     rbnd("Protocol")
+            ,     val(PathKindT.OPAQUE)
+            ,     lbnd("OpaqueBody")
+            ,       lbnd("Js.Program")
+            ,         str("//\u2029")
+            ,         lbnd("Js.IdentifierName")
+            ,           str("alert")
+            ,         rbnd("Js.IdentifierName")
+            ,         str("(")
+            ,         lbnd("Js.StringLiteral")
+            ,           str("'Hey'")
+            ,         rbnd("Js.StringLiteral")
+            ,         str(")//")
+            ,       rbnd("Js.Program")
+            ,     rbnd("OpaqueBody")
+            ,   RFRAG
+            ,   lbnd("Fragment")
+            ,     str("#")
+            ,   rbnd("Fragment")
+            , rbnd("Url")
             )
         .run();
   }
@@ -128,32 +148,35 @@ public final class UrlGrammarTest extends AbstractGrammarTest {
     GrammarTestCase.BranchBuilder b1 = testB.fork()
         .withInput("/path")
         .expectOutput(
-              llimit(C.chars('#'))
-            ,   val(ProtocolT._NONE)
-            ,   val(PathKindT.ABSOLUTE, PathKindT.RELATIVE)
-            ,   lbnd("Path")
-            ,     str("/path")
-            ,   rbnd("Path")
+              lbnd("Url")
+            ,   llimit(C.chars('#'))
+            ,     val(ProtocolT._NONE)
+            ,     val(PathKindT.ABSOLUTE, PathKindT.RELATIVE)
+            ,     lbnd("Path")
+            ,       str("/path")
+            ,     rbnd("Path")
             );
     GrammarTestCase.BranchBuilder b2 = testB.fork()
         .withInput("?query")
         .expectOutput(
-              llimit(C.chars('#'))
-            ,   val(ProtocolT._NONE)
-            ,   val(PathKindT.ABSOLUTE, PathKindT.RELATIVE)
-            ,   lbnd("Path")
-            ,   rbnd("Path")
-            ,   lbnd("Query")
-            ,     str("?query")
-            ,   rbnd("Query")
+              lbnd("Url")
+            ,   llimit(C.chars('#'))
+            ,     val(ProtocolT._NONE)
+            ,     val(PathKindT.ABSOLUTE, PathKindT.RELATIVE)
+            ,     lbnd("Path")
+            ,     rbnd("Path")
+            ,     lbnd("Query")
+            ,       str("?query")
+            ,     rbnd("Query")
          );
     b1.join(b2)
         .withInput("#frag")
         .expectOutput(
-              rlimit(C.chars('#'))
-            , lbnd("Fragment")
-            ,   str("#frag")
-            , rbnd("Fragment"));
+                rlimit(C.chars('#'))
+            ,   lbnd("Fragment")
+            ,     str("#frag")
+            ,   rbnd("Fragment")
+            , rbnd("Url"));
     testB.run();
   }
 
@@ -166,13 +189,14 @@ public final class UrlGrammarTest extends AbstractGrammarTest {
     b1 = testB.fork()
         .withInput("//www.google.com:8000")
         .expectOutput(
-              llimit(C.chars('#'))
-            ,   val(ProtocolT._NONE)
-            ,   str("//")
-            ,   lbnd("Authority")
-            ,     str("www.google.com:8000")
-            ,   rbnd("Authority")
-            ,   val(PathKindT.ABSOLUTE)
+              lbnd("Url")
+            ,   llimit(C.chars('#'))
+            ,     val(ProtocolT._NONE)
+            ,     str("//")
+            ,     lbnd("Authority")
+            ,       str("www.google.com:8000")
+            ,     rbnd("Authority")
+            ,     val(PathKindT.ABSOLUTE)
             );
 
     b2 = testB.fork()
@@ -215,13 +239,14 @@ public final class UrlGrammarTest extends AbstractGrammarTest {
     b1.join(b2, b3, b4)
         .withInput("/path#x")
         .expectOutput(
-                lbnd("Path")
-            ,     str("/path")
-            ,   rbnd("Path")
-            , rlimit(C.chars('#'))
-            , lbnd("Fragment")
-            ,   str("#x")
-            , rbnd("Fragment")
+                  lbnd("Path")
+            ,       str("/path")
+            ,     rbnd("Path")
+            ,   rlimit(C.chars('#'))
+            ,   lbnd("Fragment")
+            ,     str("#x")
+            ,   rbnd("Fragment")
+            , rbnd("Url")
             );
     testB.run();
   }

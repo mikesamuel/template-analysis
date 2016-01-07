@@ -75,7 +75,8 @@ public final class JsGrammar extends GrammarFactory {
                 or(
                     endOfInput(),
                     seq(plus(chars('*')), or(chars('/'), endOfInput())))))
-        )));
+        )))
+        .unbounded();
 
     lang.define("Token", seq(
         // Maximize the chance of joining two parser branches by
@@ -93,13 +94,14 @@ public final class JsGrammar extends GrammarFactory {
                 set(SLASH_IS, SlashIsT.DIV_OP)),
             seq(
                 in(SLASH_IS, SlashIsT.REGEX),
-                bref("RegexLiteral"),
+                ref("RegexLiteral"),
                 set(SLASH_IS, SlashIsT.DIV_OP)),
             seq(
                 in(SLASH_IS, SlashIsT.DIV_OP),
                 ref("DivOp"),
                 set(SLASH_IS, SlashIsT.REGEX)))
-        ));
+        ))
+        .unbounded();
 
     lang.define(
         "RegexPreceder",
@@ -120,18 +122,22 @@ public final class JsGrammar extends GrammarFactory {
                     "return", "static", "switch", "synchronized", "throw",
                     "throws", "transient", "try", "typeof", "var", "void",
                     "volatile", "while", "with"),
-                not(ref("IdentifierPart")))));
+                not(ref("IdentifierPart")))
+        ))
+        .unbounded();
 
     lang.define("DivOpPreceder", or(
         ref("NumberLiteral"),
-        bref("StringLiteral"),
+        ref("StringLiteral"),
         lits("}", ")", "]", "++", "--"),
         ref("IdentifierName")  // Includes keywords that can precede '/'
-        ));
+        ))
+        .unbounded();
 
     lang.define("DivOp", seq(
         lits("/", "/=")
-        ));
+        ))
+        .unbounded();
 
     lang.define("StringLiteral", or(
         seq(
@@ -147,7 +153,8 @@ public final class JsGrammar extends GrammarFactory {
     lang.define("StringChar", or(
         invChars('\\', '"', '\'', '\n', '\r', '\u2028', '\u2029'),
         seq(chars('\\'), or(anyChar(), endOfInput()))
-        ));
+        ))
+        .unbounded();
 
     lang.define("RegexLiteral", seq(
         chars('/'),
@@ -161,7 +168,8 @@ public final class JsGrammar extends GrammarFactory {
     lang.define("RegexChar", or(
         invChars('\\', '/', '[', '\n', '\r', '\u2028', '\u2029'),
         seq(chars('\\'), or(anyChar(), endOfInput()))
-        ));
+        ))
+        .unbounded();
     lang.define("RegexCharSet", seq(
         lit("["),
         star(
@@ -169,8 +177,9 @@ public final class JsGrammar extends GrammarFactory {
                 invChars('\\', ']', '\n', '\r', '\u2028', '\u2029'),
                 seq(chars('\\'), or(anyChar(), endOfInput())))),
         or(lit("]"), endOfInput())
-        ));
-    lang.define("RegexFlags", opt(ref("IdentifierName")));
+        ))
+        .unbounded();
+    lang.define("RegexFlags", opt(ref("IdentifierName"))).unbounded();
 
     lang.define("IdentifierName", seq(
         ref("IdentifierStart"),
@@ -181,7 +190,8 @@ public final class JsGrammar extends GrammarFactory {
         chars('_', '$'),
         chars(UniRanges.categories("L")),  // Unicode letters
         seq(lit("\\u"), ref("Hex"), ref("Hex"), ref("Hex"), ref("Hex"))
-        ));
+        ))
+        .unbounded();
 
     lang.define("IdentifierPart", or(
         ref("IdentifierStart"),
@@ -189,13 +199,16 @@ public final class JsGrammar extends GrammarFactory {
             // Digits, Combining Mark, Connector Punctuation
             UniRanges.categories("Nd", "Mc", "Pc"),
             UniRanges.of('\u200c', '\u200d'))) // ZWNJ ZWJ
-        ));
+        ))
+        .unbounded();
 
     lang.define("Hex", chars(
         UniRanges.union(
             UniRanges.btw('A', 'F'),
             UniRanges.btw('a', 'f'),
-            UniRanges.btw('0', '9'))));
+            UniRanges.btw('0', '9'))
+        ))
+        .unbounded();
 
     lang.define("NumberLiteral", seq(
         or(
@@ -206,17 +219,20 @@ public final class JsGrammar extends GrammarFactory {
             seq(lit("."), plus(ref("Dec")), opt(ref("Exp")))),
         not(ref("IdentifierPart"))
         ));
-    lang.define("Dec", chars(UniRanges.btw('0', '9')));
+    lang.define("Dec", chars(UniRanges.btw('0', '9')))
+        .unbounded();
     lang.define("FractionAndExp", seq(
         lit("."),
         star(ref("Dec")),
         opt(ref("Exp"))
-        ));
+        ))
+        .unbounded();
     lang.define("Exp", seq(
         chars('e', 'E'),
         opt(chars('+', '-')),
         plus(ref("Dec"))
-        ));
+        ))
+        .unbounded();
 
     return lang.build().reachableFrom(program);
   }

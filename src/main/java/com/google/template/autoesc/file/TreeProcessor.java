@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.template.autoesc.Combinator;
@@ -53,7 +54,7 @@ final class TreeProcessor {
   private DocComment nodeDocComment;
   private final LineMap lineMap;
   private final List<Production> productions = new ArrayList<>();
-  private final Supplier<NodeMetadata> mds = new Supplier<NodeMetadata>() {
+  final Supplier<NodeMetadata> metadataSupplier = new Supplier<NodeMetadata>() {
     @SuppressWarnings("synthetic-access")
     @Override
     public NodeMetadata get() {
@@ -66,7 +67,7 @@ final class TreeProcessor {
    * Can be used by output processors to create combinators that will be
    * associated with the correct source location and doc comment.
    */
-  final Combinators combinators = Combinators.using(mds);
+  final Combinators combinators = Combinators.using(metadataSupplier);
   final Types types;
   /**
    * As variables are defined in a parse unit, we keep a relation between
@@ -126,7 +127,17 @@ final class TreeProcessor {
 
   void defineProductions(Language.Builder b) {
     for (Production p : this.productions) {
-      b.define(p.name, p.c);
+      switch (p.key.kind) {
+        case UNMARKED:
+          b.define(p.key.name, p.c)
+              .unbounded()
+              .docComment(p.key.docComment);
+          break;
+        case MARKED:
+          b.define(p.key.name, p.c)
+              .docComment(p.key.docComment);
+          break;
+      }
     }
   }
 
@@ -134,11 +145,15 @@ final class TreeProcessor {
     PartialOutput.Root po = PartialOutput.of(out);
     ImmutableList.Builder<Object> topLevelElementsParsed =
         ImmutableList.builder();
-    for (PartialOutput topLevelElement : po.getBody()) {
-      processOutput(topLevelElement, topLevelElementsParsed);
+    for (PartialOutput bodyPart : po.getBody()) {
+      processOutput(bodyPart, topLevelElementsParsed);
     }
-    for (Object element : topLevelElementsParsed.build()) {
-      productions.add((Production) element);
+    for (Object topLevelProductionResult : topLevelElementsParsed.build()) {
+      // N_GRAMMAR's output processor bundles all the productions into a list.
+      Preconditions.checkState(topLevelProductionResult instanceof Iterable<?>);
+      for (Object oneResult : (Iterable<?>) topLevelProductionResult) {
+        productions.add((Production) oneResult);
+      }
     }
   }
 
@@ -197,16 +212,39 @@ final class TreeProcessor {
     }
   }
 
-}
+
+  static final class Production {
+    final ProdKey key;
+    final Combinator c;
+
+    Production(ProdKey key, Combinator c) {
+      this.key = key;
+      this.c = c;
+    }
+  }
 
 
-final class Production {
-  final ProdName name;
-  final Combinator c;
+  static final class ProdKey {
+    final Optional<String> docComment;
+    final ProdName name;
+    final ProdKind kind;
 
-  Production(ProdName name, Combinator c) {
-    this.name = name;
-    this.c = c;
+    ProdKey(Optional<String> docComment, ProdName name, ProdKind kind) {
+      this.docComment = docComment;
+      this.name = name;
+      this.kind = kind;
+    }
+
+    @Override
+    public String toString() {
+      return "[ProdKey " + name + ", " + kind + "]";
+    }
+  }
+
+
+  enum ProdKind {
+    UNMARKED,
+    MARKED,
   }
 }
 

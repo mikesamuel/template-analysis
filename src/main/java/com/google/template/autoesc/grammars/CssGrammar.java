@@ -86,21 +86,24 @@ public final class CssGrammar extends GrammarFactory {
                     ),
                 ref("Ignorable"))),
         lit("}")
-        ));
+        ))
+        .unbounded();
 
     lang.define("Ignorable", star(
         or(
             ref("Spaces"),
             ref("Comment"))
-        ));
+        ))
+        .unbounded();
 
     lang.define("Prop", decl(PROP_KIND, seq(
-        bref("Name"),
+        ref("Name"),
         ref("Ignorable"),
         lit(":"),
         ref("Ignorable"),
-        bref("Value")
-        )));
+        ref("Value")
+        )))
+        .unbounded();
 
     lang.define("Name", or(
         seq(litIgnCase("font"), set(PROP_KIND, PropKindT.FONT),
@@ -124,8 +127,10 @@ public final class CssGrammar extends GrammarFactory {
                     ref("Escape"))),
             lit("--")),
         ref("IdentTail")
-        ));
-    lang.define("IdentTail", star(ref("IdentChar")));
+        ))
+        .unbounded();
+    lang.define("IdentTail", star(ref("IdentChar")))
+        .unbounded();
     lang.define("IdentChar", or(
         chars(UniRanges.union(
             UniRanges.btw('A', 'Z'),
@@ -134,7 +139,8 @@ public final class CssGrammar extends GrammarFactory {
             UniRanges.of('_'),
             UniRanges.btw(0x80, Character.MAX_CODE_POINT))),
         ref("Escape")
-        ));
+        ))
+        .unbounded();
 
     lang.define("Value", opt(seq(
         ref("ValueToken"),
@@ -145,15 +151,16 @@ public final class CssGrammar extends GrammarFactory {
 
     lang.define("ValueToken", or(
         seq(in(PROP_KIND, PropKindT.FONT, PropKindT.CONTENT),
-            bref("StringToken")),
-        bref("UrlToken"),
-        bref("StringUrlToken"),
+            ref("StringToken")),
+        ref("UrlToken"),
+        ref("StringUrlToken"),
         ref("Quantity"),
         ref("IdentOrFn"),
         ref("HashToken"),
         ref("AtToken"),
         ref("Punctuation")
-        ));
+        ))
+        .unbounded();
 
     // http://dev.w3.org/csswg/css-syntax/#token-diagrams
     lang.define("Comment", seq(
@@ -161,18 +168,23 @@ public final class CssGrammar extends GrammarFactory {
             or(
                 seq(chars('*'), or(chars('/'), endOfInput())),
                 endOfInput())
-        ));
+        ))
+        .unbounded();
 
-    lang.define("Spaces", plus(chars('\n', '\r', '\f', '\t', ' ')));
+    lang.define("Spaces", plus(chars('\n', '\r', '\f', '\t', ' ')))
+        .unbounded();
 
-    lang.define("WS", or(ref("NL"), chars('\t', ' ')));
-    lang.define("NL", or(lit("\r\n"), chars('\n', '\r', '\f')));
+    lang.define("WS", or(ref("NL"), chars('\t', ' ')))
+        .unbounded();
+    lang.define("NL", or(lit("\r\n"), chars('\n', '\r', '\f')))
+        .unbounded();
 
     lang.define("Hex", chars(UniRanges.union(
         UniRanges.btw('0', '9'),
         UniRanges.btw('A', 'F'),
         UniRanges.btw('a', 'f')
-        )));
+        )))
+        .unbounded();
 
     lang.define("Escape", seq(
         chars('\\'),
@@ -184,12 +196,14 @@ public final class CssGrammar extends GrammarFactory {
                     UniRanges.btw('a', 'f'),
                     UniRanges.of('\n', '\r', '\f')))),
             seq(plus(ref("Hex")), ref("WS")))
-        ));
+        ))
+        .unbounded();
 
     lang.define("IdentOrFn", seq(
         ref("Ident"),
-        opt(bref("CallParams"))
-        ));
+        opt(ref("CallParams"))
+        ))
+        .unbounded();
 
     lang.define("CallParams", seq(
         lit("("),
@@ -202,12 +216,14 @@ public final class CssGrammar extends GrammarFactory {
     lang.define("AtToken", seq(
         lit("@"),
         ref("Ident")
-        ));
+        ))
+        .unbounded();
 
     lang.define("HashToken", seq(
         lit("#"),
         ref("Ident")
-        ));
+        ))
+        .unbounded();
 
     lang.define("Quantity", seq(
         ref("Number"),
@@ -215,7 +231,8 @@ public final class CssGrammar extends GrammarFactory {
             or(
                 seq(opt(ref("Spaces")), chars('%')),
                 ref("Ident")))
-        ));
+        ))
+        .unbounded();
 
     lang.define("StringToken", or(
         seq(chars('"'), star(or(chars('\''), ref("StringChar"))),
@@ -227,7 +244,8 @@ public final class CssGrammar extends GrammarFactory {
         invChars('"', '\'', '\\', '\r', '\n', '\f'),
         ref("Escape"),
         seq(chars('\\'), ref("NL"))
-        ));
+        ))
+        .unbounded();
 
     lang.define("UrlToken", seq(
         litIgnCase("url("),
@@ -257,7 +275,8 @@ public final class CssGrammar extends GrammarFactory {
                 chars('e', 'E'),
                 opt(chars('+', '-')),
                 plus(chars(UniRanges.btw('0', '9')))))
-        ));
+        ))
+        .unbounded();
 
     lang.define("Punctuation", or(
         lits("~-", "|=", "^=", "$=", "*=", "||", "<!--", "-->"),
@@ -271,7 +290,8 @@ public final class CssGrammar extends GrammarFactory {
             UniRanges.of(
                 '-', '_', ';', '(', ')', '{', '}',
                 '"', '\'', '\\', ':', '/'))))
-        ));
+        ))
+        .unbounded();
 
     return lang.build().reachableFrom(props, styleSheet);
   }
