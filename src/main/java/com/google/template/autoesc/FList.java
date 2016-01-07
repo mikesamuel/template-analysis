@@ -40,6 +40,31 @@ public abstract class FList<T> implements Iterable<T> {
     return ls;
   }
 
+  /** @see #of(Object...) */
+  public static <T> FList<T> of() {
+    return empty();
+  }
+
+  /** @see #of(Object...) */
+  public static <T> FList<T> of(T a) {
+    return cons(a, FList.<T>empty());
+  }
+
+  /** @see #of(Object...) */
+  public static <T> FList<T> of(T a, T b) {
+    return cons(b, cons(a, FList.<T>empty()));
+  }
+
+  /** @see #of(Object...) */
+  public static <T> FList<T> of(T a, T b, T c) {
+    return cons(c, cons(b, cons(a, FList.<T>empty())));
+  }
+
+  /** @see #of(Object...) */
+  public static <T> FList<T> of(T a, T b, T c, T d) {
+    return cons(d, cons(c, cons(b, cons(a, FList.<T>empty()))));
+  }
+
   /** O(1) */
   public abstract int length();
 
