@@ -58,6 +58,10 @@ public final class LoopCombinator extends UnaryCombinator {
 
   @Override
   public ParseDelta enter(Parse p) {
+    return enter();
+  }
+
+  private ParseDelta enter() {
     return ParseDelta.builder(body)
         .push()
         .withOutput(LoopMarker.INSTANCE)
@@ -69,9 +73,7 @@ public final class LoopCombinator extends UnaryCombinator {
     switch (s) {
       case FAIL:
         // Look for the loop start marker and remove it
-        return ParseDelta.fail()
-            .withIOTransform(LoopMarker.INSTANCE.rollback())
-            .build();
+        return exitFail();
       case PASS:
         boolean didConsumeInput = false;
         for (Output o : p.out) {
@@ -91,51 +93,53 @@ public final class LoopCombinator extends UnaryCombinator {
           //   x x*
           // The OrCombinator also cleans up after the last, failing iteration.
           // instance.
-          return ParseDelta
-              .builder(optionalBody)
-              .push()
-              .commit(LoopMarker.INSTANCE)
-              .withOutput(LoopMarker.INSTANCE)
-              .build();
+          return exitContinue();
         } else {
           // The loop body succeeded but did nothing.
           // An infinite number of matches of an empty string is the same as
           // one match of an empty string, so stop.
-          return ParseDelta.pass()
-              .commit(LoopMarker.INSTANCE)
-              .build();
+          return exitBreak();
         }
     }
     throw new AssertionError(s);
   }
 
+  private static ParseDelta exitFail() {
+    return ParseDelta.fail()
+        .withIOTransform(LoopMarker.INSTANCE.rollback())
+        .build();
+  }
+
+  private ParseDelta exitContinue() {
+    return ParseDelta
+        .builder(optionalBody)
+        .push()
+        .commit(LoopMarker.INSTANCE)
+        .withOutput(LoopMarker.INSTANCE)
+        .build();
+  }
+
+  private static ParseDelta exitBreak() {
+    return ParseDelta.pass()
+        .commit(LoopMarker.INSTANCE)
+        .build();
+  }
 
   @Override
   public ImmutableList<ParseDelta> epsilonTransition(
       TransitionType tt, Language lang, OutputContext ctx) {
     switch (tt) {
       case ENTER:
-        return ImmutableList.of(
-            ParseDelta.builder(body).push().withOutput(LoopMarker.INSTANCE)
-            .build());
+        return ImmutableList.of(enter());
       case EXIT_FAIL:
-        return ImmutableList.of(
-            ParseDelta.fail()
-            .withIOTransform(LoopMarker.INSTANCE.rollback())
-            .build());
+        return ImmutableList.of(exitFail());
       case EXIT_PASS:
         return ImmutableList.of(
             // Try re-entering to see if we catch up with a branch that's
             // already in the loop.
-            ParseDelta.builder(optionalBody)
-                .commit(LoopMarker.INSTANCE)
-                .withOutput(LoopMarker.INSTANCE)
-                .push()
-                .build(),
+            exitContinue(),
             // If the last run of the body consumed nothing.
-            ParseDelta.pass()
-                .commit(LoopMarker.INSTANCE)
-                .build());
+            exitBreak());
     }
     throw new AssertionError(tt);
   }
