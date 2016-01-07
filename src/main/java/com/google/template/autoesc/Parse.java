@@ -5,7 +5,6 @@ import com.google.common.base.Objects;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import com.google.template.autoesc.combimpl.EmptyCombinator;
 import com.google.template.autoesc.combimpl.ErrorCombinator;
 import com.google.template.autoesc.inp.InputCursor;
 import com.google.template.autoesc.inp.RawCharsInputCursor;
@@ -80,50 +79,59 @@ public final class Parse implements OutputContext {
     Combinator hd = stack.hd();
     FList<Combinator> tl = stack.tl();
     Parse tlParse = builder().withStack(tl).build();
-    ParseDelta result;
 
-    // The combinator being operated upon.
-    Combinator c;
-    // The base of the stack -- the suffix onto which result.push would cause
-    // d to be pushed.
-    FList<Combinator> base;
     // Figure out the kind of change -- whether to expand or reduce the stack.
-    if (hd instanceof EmptyCombinator) {
-      if (tl.isEmpty()) { return this; }  // completion state is PASS
-      c = tl.hd();
-      base = tl.tl();
-      watcher.passed(c, tlParse);
-      result = c.exit(tlParse, Success.PASS);
-    } else if (hd instanceof ErrorCombinator) {
-      if (tl.isEmpty()) { return this; }  // completion state is FAIL
-      c = tl.hd();
-      base = tl.tl();
-      watcher.failed(c, tlParse);
-      result = c.exit(tlParse, Success.FAIL);
-    } else {
-      c = hd;
-      base = tl;
-      watcher.entered(c, tlParse);
-      result = c.enter(tlParse);
-    }
+    TransitionType tt = TransitionType.of(hd);
+    switch (tt) {
+      case ENTER:
+        watcher.entered(hd, tlParse);
+        return apply(hd.enter(tlParse));
+      case EXIT_PASS:
+      case EXIT_FAIL:
+        if (tl.isEmpty()) { return this; }  // completion state is PASS or FAIL
+        // Ignore the {Empty,Error}Combinator at the head of the stack.
+        Combinator c = tl.hd();
+        Parse base = pop();
 
+        Success s;
+        if (tt == TransitionType.EXIT_PASS) {
+          watcher.passed(c, tlParse);
+          s = Success.PASS;
+        } else {
+          watcher.failed(c, tlParse);
+          s = Success.FAIL;
+        }
+        return base.apply(c.exit(tlParse, s));
+    }
+    throw new AssertionError(tt);
+  }
+
+  /** The parse without the head of the stack. */
+  public Parse pop() {
+    return new Parse(lang, inp, out, stack.tl());
+  }
+
+  /**
+   * This parse state with any changes from delta.
+   */
+  public Parse apply(ParseDelta delta) {
+    Combinator c = stack.hd();
+    FList<Combinator> base = stack.tl();
     // Apply the result.
     FList<Combinator> resultStack = base;
-    if (result.push) {
+    if (delta.push) {
       resultStack = FList.cons(c, resultStack);
     }
-    resultStack = FList.cons(result.c, resultStack);
+    resultStack = FList.cons(delta.c, resultStack);
 
-    ParseDelta.IOTransform ioTransform = result.ioTransform;
+    ParseDelta.IOTransform ioTransform = delta.ioTransform;
     ioTransform.apply(inp, out);
 
-    Parse afterStep = builder()
+    return builder()
         .withStack(resultStack)
         .withInput(ioTransform.getTransformedCursor())
         .withOutput(ioTransform.getTransformedOutput())
         .build();
-
-    return afterStep;
   }
 
   /** A builder that initially has the same state as this. */
