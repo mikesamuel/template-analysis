@@ -152,7 +152,7 @@ public class OrCombinator extends BinaryCombinator {
         suffixOperator = "*";
 	final LoopCombinator loop = (LoopCombinator) allButLast;
         bodyVisualizable = new VizLoop(loop);
-        bodyPrecedence = loop.body.precedence();
+        bodyPrecedence = loop.getLoopBody().precedence();
       } else {
         bodyVisualizable = allButLast;
         suffixOperator = "?";
@@ -244,6 +244,6 @@ final class VizLoop implements Visualizable {
   public void visualize(DetailLevel ilvl, VizOutput iout)
   throws IOException {
     AbstractVisualizable.visualize(
-        loop, loop.getVizTypeClassName(), ilvl, iout, loop.body);
+        loop, loop.getVizTypeClassName(), ilvl, iout, loop.getLoopBody());
   }
 }

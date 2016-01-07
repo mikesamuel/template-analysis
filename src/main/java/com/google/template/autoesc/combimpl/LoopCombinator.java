@@ -5,6 +5,7 @@ import java.io.IOException;
 
 import com.google.common.base.Function;
 import com.google.common.base.Objects;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
@@ -36,13 +37,21 @@ import com.google.template.autoesc.viz.VizOutput;
  * without consuming any input, whichever happens first.
  */
 public final class LoopCombinator extends UnaryCombinator {
-  private final OrCombinator optionalBody;
 
   /** */
   public LoopCombinator(Supplier<NodeMetadata> mds, Combinator body) {
-    super(mds, body);
-    this.optionalBody = new OrCombinator(
-        mds, body, EmptyCombinator.INSTANCE);
+    this(mds, new OrCombinator(mds, body, EmptyCombinator.INSTANCE), null);
+  }
+
+  /**
+   * @param v serves to differentiate the static signature of this constructor
+   *     which does not wrap its argument in an option from the one that does.
+   */
+  private LoopCombinator(
+      Supplier<NodeMetadata> mds, OrCombinator optionalBody, Void v) {
+    super(mds, optionalBody);
+    Preconditions.checkArgument(
+        optionalBody.second == EmptyCombinator.INSTANCE);
   }
 
   @Override
@@ -53,7 +62,30 @@ public final class LoopCombinator extends UnaryCombinator {
     if (newBody == this.body && newMetadata.equals(this.md)) {
       return this;
     }
-    return new LoopCombinator(Suppliers.ofInstance(newMetadata), newBody);
+    if (newBody instanceof OrCombinator
+        && EmptyCombinator.INSTANCE == ((OrCombinator) newBody).second) {
+      return new LoopCombinator(
+          Suppliers.ofInstance(newMetadata),
+          (OrCombinator) newBody,
+          (Void) null);
+    } else {
+      throw new IllegalArgumentException(newBody.toString());
+    }
+  }
+
+  /**
+   * The body of this loop which must appear at least once.
+   */
+  public Combinator getLoopBody() {
+    return getOptionalBody().first;
+  }
+
+  /**
+   * An option containing the {@linkplain #getLoopBody body} which is used in
+   * the second and subsequent iterations.
+   */
+  public OrCombinator getOptionalBody() {
+    return (OrCombinator) body;
   }
 
   @Override
@@ -62,7 +94,7 @@ public final class LoopCombinator extends UnaryCombinator {
   }
 
   private ParseDelta enter() {
-    return ParseDelta.builder(body)
+    return ParseDelta.builder(getLoopBody())
         .push()
         .withOutput(LoopMarker.INSTANCE)
         .build();
@@ -85,14 +117,6 @@ public final class LoopCombinator extends UnaryCombinator {
           }
         }
         if (didConsumeInput) {
-          // Push the body back and wrap it in an optional check so that a
-          // failure doesn't cause the loop as a whole to fail.
-          // This works because
-          //   x+
-          // is equivalent to
-          //   x x*
-          // The OrCombinator also cleans up after the last, failing iteration.
-          // instance.
           return exitContinue();
         } else {
           // The loop body succeeded but did nothing.
@@ -111,8 +135,16 @@ public final class LoopCombinator extends UnaryCombinator {
   }
 
   private ParseDelta exitContinue() {
+    // Push the body back and wrap it in an optional check so that a
+    // failure doesn't cause the loop as a whole to fail.
+    // This works because
+    //   x+
+    // is equivalent to
+    //   x x*
+    // The OrCombinator also cleans up after the last, failing iteration.
+    // instance.
     return ParseDelta
-        .builder(optionalBody)
+        .builder(getOptionalBody())
         .push()
         .commit(LoopMarker.INSTANCE)
         .withOutput(LoopMarker.INSTANCE)
@@ -153,13 +185,15 @@ public final class LoopCombinator extends UnaryCombinator {
   @Override
   protected void visualizeBody(DetailLevel lvl, VizOutput out)
   throws IOException {
+    Combinator loopBody = getLoopBody();
+
     boolean parenthesize = false;
-    if (0 < Precedence.SELF_CONTAINED.compareTo(body.precedence())) {
+    if (0 < Precedence.SELF_CONTAINED.compareTo(loopBody.precedence())) {
       parenthesize = true;
     }
 
     if (parenthesize) { out.text("("); }
-    body.visualize(lvl, out);
+    loopBody.visualize(lvl, out);
     if (parenthesize) { out.text(")"); }
     try (Closeable sup = out.open(TagName.SUP)) {
       out.text("+");
@@ -180,12 +214,12 @@ public final class LoopCombinator extends UnaryCombinator {
 
   @Override
   public Frequency consumesInput(Language lang) {
-    return lang.lali.consumesInput(body);
+    return lang.lali.consumesInput(getLoopBody());
   }
 
   @Override
   public ImmutableRangeSet<Integer> lookahead(Language lang) {
-    return lang.lali.lookahead(body);
+    return lang.lali.lookahead(getLoopBody());
   }
 
 
