@@ -558,18 +558,20 @@ final class BranchTerminationAssertionWatcher implements ParseWatcher {
         actual = ImmutableList.copyOf(filtered);
       }
 
-      assertEqualsWithDiff("outputs", b.expectedOutputs.get(), actual);
+      assertEqualsWithDiff(
+          "outputs for " + b.name,
+          b.expectedOutputs.get(), actual);
     }
 
     if (actualEndState == Completion.PASSED
         || !b.expectedUnparsedInput.isEmpty()) {
       Assert.assertEquals(
-          "unparsed input",
+          "unparsed input for " + b.name,
           b.expectedUnparsedInput,
           p.inp.getAvailable().toString());
 
       Assert.assertTrue(
-          "complete",
+          "complete for " + b.name,
           p.inp.isComplete());
     }
 
