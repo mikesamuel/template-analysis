@@ -37,10 +37,23 @@ public final class CssGrammar extends GrammarFactory {
     ;
   }
 
+  /**
+   * Name of a production that matches a quoted string.
+   */
+  public static final ProdName N_STRING_TOKEN = new ProdName("StringToken");
+
+  /**
+   * Name of a production that matches a stylesheet.
+   */
+  public static final ProdName N_STYLE_SHEET = new ProdName("StyleSheet");
+
+  /**
+   * Name of a production that matches a run of properties.
+   */
+  public static final ProdName N_PROPS = new ProdName("Props");
+
   private Language make() {
     final Language.Builder lang = new Language.Builder();
-    final ProdName props = new ProdName("Props");
-    final ProdName styleSheet = new ProdName("StyleSheet");
     String demoServerQuery;
     try {
       demoServerQuery = DemoServerQuery.builder()
@@ -50,9 +63,9 @@ public final class CssGrammar extends GrammarFactory {
       throw new AssertionError(ex);
     }
     lang.demoServerQuery(Optional.of(demoServerQuery));
-    lang.defaultStartProdName(props);
+    lang.defaultStartProdName(N_PROPS);
 
-    lang.define(props, seq(
+    lang.define(N_PROPS, seq(
         ref("Ignorable"),
         star(seq(lit("l"), ref("Ignorable"))),
         opt(
@@ -64,7 +77,7 @@ public final class CssGrammar extends GrammarFactory {
                         ref("Prop"), ref("Ignorable"))),
                 star(seq(lit("l"), ref("Ignorable")))))
         ));
-    lang.define(styleSheet, seq(
+    lang.define(N_STYLE_SHEET, seq(
         ref("Ignorable"),
         star(
             seq(
@@ -80,7 +93,7 @@ public final class CssGrammar extends GrammarFactory {
         star(
             seq(
                 or(
-                    ref("Props"),
+                    ref(N_PROPS),
                     ref("Block"),
                     ref("ValueToken")
                     ),
@@ -151,7 +164,7 @@ public final class CssGrammar extends GrammarFactory {
 
     lang.define("ValueToken", or(
         seq(in(PROP_KIND, PropKindT.FONT, PropKindT.CONTENT),
-            ref("StringToken")),
+            ref(N_STRING_TOKEN)),
         ref("UrlToken"),
         ref("StringUrlToken"),
         ref("Quantity"),
@@ -234,7 +247,7 @@ public final class CssGrammar extends GrammarFactory {
         ))
         .unbounded();
 
-    lang.define("StringToken", or(
+    lang.define(N_STRING_TOKEN, or(
         seq(chars('"'), star(or(chars('\''), ref("StringChar"))),
             or(chars('"'), endOfInput())),
         seq(chars('\''), star(or(chars('"'), ref("StringChar"))),
@@ -251,7 +264,7 @@ public final class CssGrammar extends GrammarFactory {
         litIgnCase("url("),
         star(ref("WS")),
         or(
-            ref("StringToken"),
+            ref(N_STRING_TOKEN),
             star(or(
                 chars(UniRanges.invert(UniRanges.union(
                     UniRanges.of('"', '\'', '(', ')', '\\'),
@@ -262,7 +275,7 @@ public final class CssGrammar extends GrammarFactory {
         or(lit(")"), endOfInput())
         ));
 
-    lang.define("StringUrlToken", ref("StringToken"));
+    lang.define("StringUrlToken", ref(N_STRING_TOKEN));
 
     lang.define("Number", seq(
         opt(chars('+', '-')),
@@ -293,7 +306,7 @@ public final class CssGrammar extends GrammarFactory {
         ))
         .unbounded();
 
-    return lang.build().reachableFrom(props, styleSheet);
+    return lang.build().reachableFrom(N_PROPS, N_STYLE_SHEET);
   }
 
   /**

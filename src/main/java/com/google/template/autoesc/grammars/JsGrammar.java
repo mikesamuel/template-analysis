@@ -38,10 +38,18 @@ public final class JsGrammar extends GrammarFactory {
     DONT_CARE,
   }
 
+  /** Name of a production that matches a run of JS token. */
+  public static final ProdName N_PROGRAM = new ProdName("Program");
+
+  /** Name of a production that matches a quoted string literal. */
+  public static final ProdName N_STRING_LITERAL = new ProdName("StringLiteral");
+
+  /** Name of a production that matches a {@code RegExp} literal. */
+  public static final ProdName N_REGEX_LITERAL = new ProdName("RegexLiteral");
 
   private Language make() {
     final Language.Builder lang = new Language.Builder();
-    final ProdName program = new ProdName("Program");
+
     String demoServerQuery;
     try {
       demoServerQuery = DemoServerQuery.builder()
@@ -51,9 +59,9 @@ public final class JsGrammar extends GrammarFactory {
       throw new AssertionError(ex);
     }
     lang.demoServerQuery(Optional.of(demoServerQuery));
-    lang.defaultStartProdName(program);
+    lang.defaultStartProdName(N_PROGRAM);
 
-    lang.define(program, decl(SLASH_IS, seq(
+    lang.define(N_PROGRAM, decl(SLASH_IS, seq(
         set(SLASH_IS, SlashIsT.REGEX),
         star(ref("Token")),
         ref("Ignorable")
@@ -94,7 +102,7 @@ public final class JsGrammar extends GrammarFactory {
                 set(SLASH_IS, SlashIsT.DIV_OP)),
             seq(
                 in(SLASH_IS, SlashIsT.REGEX),
-                ref("RegexLiteral"),
+                ref(N_REGEX_LITERAL),
                 set(SLASH_IS, SlashIsT.DIV_OP)),
             seq(
                 in(SLASH_IS, SlashIsT.DIV_OP),
@@ -128,7 +136,7 @@ public final class JsGrammar extends GrammarFactory {
 
     lang.define("DivOpPreceder", or(
         ref("NumberLiteral"),
-        ref("StringLiteral"),
+        ref(N_STRING_LITERAL),
         lits("}", ")", "]", "++", "--"),
         ref("IdentifierName")  // Includes keywords that can precede '/'
         ))
@@ -139,7 +147,7 @@ public final class JsGrammar extends GrammarFactory {
         ))
         .unbounded();
 
-    lang.define("StringLiteral", or(
+    lang.define(N_STRING_LITERAL, or(
         seq(
             chars('"'),
             star(or(ref("StringChar"), chars('\''))),
@@ -156,7 +164,7 @@ public final class JsGrammar extends GrammarFactory {
         ))
         .unbounded();
 
-    lang.define("RegexLiteral", seq(
+    lang.define(N_REGEX_LITERAL, seq(
         chars('/'),
         not(chars('/', '*')),
         plus(or(ref("RegexChar"), ref("RegexCharSet"))),
@@ -234,7 +242,7 @@ public final class JsGrammar extends GrammarFactory {
         ))
         .unbounded();
 
-    return lang.build().reachableFrom(program);
+    return lang.build().reachableFrom(N_PROGRAM);
   }
 
   /**

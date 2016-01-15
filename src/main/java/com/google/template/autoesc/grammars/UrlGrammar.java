@@ -52,9 +52,24 @@ public final class UrlGrammar extends GrammarFactory {
     OPAQUE,
   }
 
+  /**
+   * Name of a production that matches a URL reference.
+   */
+  public static final ProdName N_URL = new ProdName("Url");
+
+  /** Name of a production that matches the authority portion of a URL. */
+  public static final ProdName N_AUTHORITY = new ProdName("Authority");
+  /** Name of a production that matches the protocol portion of a URL. */
+  public static final ProdName N_PROTOCOL = new ProdName("Protocol");
+  /** Name of a production that matches the fragment portion of a URL. */
+  public static final ProdName N_FRAGMENT = new ProdName("Fragment");
+  /** Name of a production that matches the path portion of a URL. */
+  public static final ProdName N_PATH = new ProdName("Path");
+  /** Name of a production that matches the query portion of a URL. */
+  public static final ProdName N_QUERY = new ProdName("Query");
+
   private Language make() {
     final Language.Builder lang = new Language.Builder();
-    final ProdName url = new ProdName("Url");
     String demoServerQuery;
     try {
       demoServerQuery = DemoServerQuery.builder()
@@ -64,9 +79,9 @@ public final class UrlGrammar extends GrammarFactory {
       throw new AssertionError(ex);
     }
     lang.demoServerQuery(Optional.of(demoServerQuery));
-    lang.defaultStartProdName(url);
+    lang.defaultStartProdName(N_URL);
 
-        lang.define(url,
+        lang.define(N_URL,
             decl(PROTOCOL,
                 seq(
                     // URI fragments are not exclusive to hierarchical URLs.
@@ -83,7 +98,7 @@ public final class UrlGrammar extends GrammarFactory {
                     until(
                         ref("UrlBody"),
                         chars('#')),
-                    opt(ref("Fragment"))))
+                    opt(ref(N_FRAGMENT))))
             );
         lang.define("UrlBody",
             decl(
@@ -94,7 +109,7 @@ public final class UrlGrammar extends GrammarFactory {
                         seq(
                             // Either we have a protocol, or it is none.
                             or(
-                                ref("Protocol"),
+                                ref(N_PROTOCOL),
                                 set(PROTOCOL, ProtocolT._NONE)),
                             or(
                                 // If we have no protocol, we may still have
@@ -125,8 +140,8 @@ public final class UrlGrammar extends GrammarFactory {
                             ref("OpaqueBody")
                             ),
                         seq(
-                            opt(ref("Path")),
-                            opt(ref("Query")))
+                            opt(ref(N_PATH)),
+                            opt(ref(N_QUERY)))
                     )
                 )
             ))
@@ -135,13 +150,13 @@ public final class UrlGrammar extends GrammarFactory {
         lang.define("ProtocolRelative", seq(
             notIn(PROTOCOL, KNOWN_OPAQUE_PROTOCOLS),
             lit("//"),
-            opt(ref("Authority")),
+            opt(ref(N_AUTHORITY)),
             set(PATH_RESTRICTION, ImmutableSet.of(PathKindT.ABSOLUTE))
             ))
             .unbounded();
 
         // scheme      = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
-        lang.define("Protocol", or(
+        lang.define(N_PROTOCOL, or(
             seq(litIgnCase("https:"), set(PROTOCOL, ProtocolT.HTTPS)),
             seq(litIgnCase("http:"), set(PROTOCOL, ProtocolT.HTTP)),
             seq(litIgnCase("javascript:"), set(PROTOCOL, ProtocolT.JAVASCRIPT)),
@@ -158,9 +173,9 @@ public final class UrlGrammar extends GrammarFactory {
                 set(PROTOCOL, ProtocolT._UNKNOWN))
             ));
 
-        lang.define("Authority", seq(
+        lang.define(N_AUTHORITY, seq(
             star(invChars('#', '?', '/'))));
-        lang.define("Path", seq(
+        lang.define(N_PATH, seq(
             not(
                 or(
                     // Disallow a double slash which starts a protocol-relative
@@ -186,10 +201,10 @@ public final class UrlGrammar extends GrammarFactory {
             // Terminal "/"
             opt(lit("/"))
             ));
-        lang.define("Query", seq(
+        lang.define(N_QUERY, seq(
             lit("?"),
             star(invChars('#'))));
-        lang.define("Fragment", seq(
+        lang.define(N_FRAGMENT, seq(
             lit("#"),
             star(anyChar())));
         lang.define("PathSegment", seq(
@@ -199,16 +214,16 @@ public final class UrlGrammar extends GrammarFactory {
         lang.define("OpaqueBody", or(
             seq(
                 in(PROTOCOL, ProtocolT.JAVASCRIPT),
-                ref("Js.Program")
+                ref(JsGrammar.N_PROGRAM.withPrefix(Prefixes.JS_PREFIX))
                 ),
             seq(
                 notIn(PROTOCOL, ProtocolT.JAVASCRIPT),
                 star(anyChar()))
             ));
 
-        lang.include("Js", JsGrammar.LANG);
+        lang.include(Prefixes.JS_PREFIX, JsGrammar.LANG);
 
-    return lang.build().reachableFrom(url);
+    return lang.build().reachableFrom(N_URL);
   }
 
   /** A grammar for URLs which recognizes some important protocols. */

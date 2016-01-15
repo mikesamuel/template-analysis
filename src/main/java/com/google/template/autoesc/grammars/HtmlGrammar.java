@@ -35,9 +35,60 @@ public final class HtmlGrammar extends GrammarFactory {
     ;
   }
 
+  /** Name of the start production for an HTML document fragment. */
+  public static final ProdName N_HTML = new ProdName("Html");
+
+  /** Name of the production for an HTML attribute. */
+  public static final ProdName N_ATTRIB = new ProdName("Attrib");
+  /**
+   * Name of the production for an HTML attribute name.
+   * This is a <i>qname</i> in XML jargon.
+   */
+  public static final ProdName N_ATTRIB_NAME = new ProdName("AttribName");
+  /**
+   * Name of the production for an HTML attribute value including any quotes.
+   */
+  public static final ProdName N_ATTRIB_VALUE = new ProdName("AttribValue");
+  /**
+   * Name of the production for a run of attributes in an open tag.
+   */
+  public static final ProdName N_ATTRIBS = new ProdName("Attribs");
+  /**
+   * Name of the production for an HTML comment or pseudo-comment.
+   */
+  public static final ProdName N_COMMENT = new ProdName("Comment");
+  /**
+   * Name of the production for an end tag.
+   */
+  public static final ProdName N_END_TAG = new ProdName("EndTag");
+  /**
+   * Name of the production for a run of characters that should match an
+   * embedded grammar but which do not.
+   */
+  public static final ProdName N_MALFORMED = new ProdName("Malformed");
+  /**
+   * Name of the production for a run of characters that are treated as
+   * raw character data.  In RCDATA, text is allowed that looks like HTML tags
+   * or comments but they are treated as textual content.
+   */
+  public static final ProdName N_RC_DATA = new ProdName("RcData");
+  /**
+   * Name of the production for tags whose bodies require special handling.
+   */
+  public static final ProdName N_SPECIAL_TAG = new ProdName("SpecialTag");
+  /**
+   * Name of the production for regular
+   * (not {@linkplain #N_SPECIAL_TAG special}) HTML tags.
+   */
+  public static final ProdName N_TAG = new ProdName("Tag");
+  /**
+   * Name of the production for a tag name.
+   * This is a <i>qname</i> in XML jargon.
+   */
+  public static final ProdName N_TAG_NAME = new ProdName("TagName");
+
 
   private Language make() {
-    final ProdName html = new ProdName("Html");
     final Language.Builder lang = new Language.Builder();
     String demoServerQuery;
     try {
@@ -48,28 +99,28 @@ public final class HtmlGrammar extends GrammarFactory {
       throw new AssertionError(ex);
     }
     lang.demoServerQuery(Optional.of(demoServerQuery));
-    lang.defaultStartProdName(html);
+    lang.defaultStartProdName(N_HTML);
 
-    lang.define(html, star(ref("Element")));
+    lang.define(N_HTML, star(ref("Element")));
     lang.define("Element", or(
         ref("TextChar"),
-        ref("EndTag"),
-        ref("SpecialTag"),
-        ref("Tag"),
-        ref("Comment"),
+        ref(N_END_TAG),
+        ref(N_SPECIAL_TAG),
+        ref(N_TAG),
+        ref(N_COMMENT),
         // This allows joined grammars to successfully commit to
         // re-entering the loop but without requiring more output.
         endOfInput()  // TODO: is this really necessary anymore?
         ))
         .unbounded();
-    lang.define("SpecialTag", or(
+    lang.define(N_SPECIAL_TAG, or(
         seq(
             litIgnCase("<script"),
             ref("TagTail"),
             until(
                 or(
-                    ref("Js.Program"),
-                    ref("Malformed")),
+                    ref(JsGrammar.N_PROGRAM.withPrefix(Prefixes.JS_PREFIX)),
+                    ref(N_MALFORMED)),
                 closeTagPattern("script")
                 )
             ),
@@ -78,22 +129,23 @@ public final class HtmlGrammar extends GrammarFactory {
             ref("TagTail"),
             until(
                 or(
-                    ref("Css.StyleSheet"),
-                    ref("Malformed")),
+                    ref(CssGrammar.N_STYLE_SHEET
+                        .withPrefix(Prefixes.CSS_PREFIX)),
+                    ref(N_MALFORMED)),
                 closeTagPattern("style"))
             ),
         seq(
             litIgnCase("<textarea"),
             ref("TagTail"),
             until(
-                ref("RcData"),
+                ref(N_RC_DATA),
                 closeTagPattern("textarea"))
             ),
         seq(
             litIgnCase("<title"),
             ref("TagTail"),
             until(
-                ref("RcData"),
+                ref(N_RC_DATA),
                 closeTagPattern("title"))
             )
         ));
@@ -114,7 +166,7 @@ public final class HtmlGrammar extends GrammarFactory {
             )
         ))
         .unbounded();
-    lang.define("Comment", or(
+    lang.define(N_COMMENT, or(
         seq(lit("<!-"),
             plus(chars('-')),
             or(
@@ -135,20 +187,25 @@ public final class HtmlGrammar extends GrammarFactory {
             star(invChars('>')),
             or(lit(">"), endOfInput()))
         ));
-    lang.define("EndTag",
+    lang.define(N_END_TAG,
         seq(lit("</"),
-            ref("TagName"), opt(ref("Spaces")),
+            ref(N_TAG_NAME), opt(ref("Spaces")),
             or(lit(">"), endOfInput())));
-    lang.define("Tag", seq(lit("<"), ref("TagName"), ref("TagTail")));
+    lang.define(N_TAG, seq(lit("<"), ref(N_TAG_NAME), ref("TagTail")));
     lang.define("TagTail", seq(
-        opt(seq(
-            opt(ref("Spaces")),
-            star(seq(ref("Attrib"), opt(ref("Spaces")))))),
+        ref("AttribsUnbounded"),
         opt(lit("/")),
         or(lit(">"), endOfInput())))
         .unbounded();
-    lang.define("RcData", star(anyChar()));
-    lang.define("TagName", seq(
+    lang.define(N_ATTRIBS,
+        ref("AttribsUnbounded"));
+    lang.define("AttribsUnbounded",
+        opt(seq(
+            opt(ref("Spaces")),
+            star(seq(ref(N_ATTRIB), opt(ref("Spaces")))))))
+        .unbounded();
+    lang.define(N_RC_DATA, star(anyChar()));
+    lang.define(N_TAG_NAME, seq(
         chars(UniRanges.union(
             UniRanges.btw('A', 'Z'),
             UniRanges.btw('a', 'z'))),
@@ -159,23 +216,23 @@ public final class HtmlGrammar extends GrammarFactory {
                 UniRanges.btw('0', '9'),
                 UniRanges.of(':', '-', '_'))))
         ));
-    lang.define("Attrib",
+    lang.define(N_ATTRIB,
         decl(
             ATTR,
             seq(
-                ref ("AttribName"),
+                ref(N_ATTRIB_NAME),
                 opt(ref("Spaces")),
                 opt(
                     seq(
                         lit("="),
                         opt(ref("Spaces")),
                         or(
-                            ref("AttribValue"),
+                            ref(N_ATTRIB_VALUE),
                             endOfInput()
                             )
                 ))
         )));
-    lang.define("AttribName",
+    lang.define(N_ATTRIB_NAME,
         or(
             seq(
                 or(
@@ -203,7 +260,7 @@ public final class HtmlGrammar extends GrammarFactory {
         invChars('\t', '\n', '\f', '\r', ' ', '>', '/', '"', '\'', '='))
         .unbounded();
 
-    lang.define("AttribValue", or(
+    lang.define(N_ATTRIB_VALUE, or(
         seq(
             chars('"'),
             until(ref("AttribContent"), chars('"')),
@@ -220,11 +277,17 @@ public final class HtmlGrammar extends GrammarFactory {
 
     lang.define("AttribContent", or (
             seq(in(ATTR, AttrT.SCRIPT),
-                embed(ref("Js.Program"), StringTransforms.HTML)),
+                embed(
+                    ref(JsGrammar.N_PROGRAM.withPrefix(Prefixes.JS_PREFIX)),
+                    StringTransforms.HTML)),
             seq(in(ATTR, AttrT.STYLE),
-                embed(ref("Css.Props"), StringTransforms.HTML)),
+                embed(
+                    ref(CssGrammar.N_PROPS.withPrefix(Prefixes.CSS_PREFIX)),
+                    StringTransforms.HTML)),
             seq(in(ATTR, AttrT.URL),
-                embed(ref("Url.Url"), StringTransforms.HTML)),
+                embed(
+                    ref(UrlGrammar.N_URL.withPrefix(Prefixes.URL_PREFIX)),
+                    StringTransforms.HTML)),
             seq(in(ATTR, AttrT.OTHER), star(anyChar()))))
         .unbounded();
 
@@ -238,13 +301,13 @@ public final class HtmlGrammar extends GrammarFactory {
         UniRanges.of(':', '-', '_')))))
         .unbounded();
 
-    lang.define("Malformed", star(anyChar()));
+    lang.define(N_MALFORMED, star(anyChar()));
 
-    lang.include("Js", JsGrammar.LANG);
-    lang.include("Css", CssGrammar.LANG);
-    lang.include("Url", UrlGrammar.LANG);
+    lang.include(Prefixes.JS_PREFIX, JsGrammar.LANG);
+    lang.include(Prefixes.CSS_PREFIX, CssGrammar.LANG);
+    lang.include(Prefixes.URL_PREFIX, UrlGrammar.LANG);
 
-    return lang.build().reachableFrom(html);
+    return lang.build().reachableFrom(N_HTML);
   }
 
   /** A grammar for HTML that embeds JS, CSS, and URL grammars. */
