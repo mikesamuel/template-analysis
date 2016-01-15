@@ -18,6 +18,7 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.template.autoesc.combimpl.OrCombinator;
+import com.google.template.autoesc.inp.InputCursor;
 import com.google.template.autoesc.out.BinaryOutput;
 import com.google.template.autoesc.out.Output;
 import com.google.template.autoesc.out.PartialOutput;
@@ -29,6 +30,7 @@ import com.google.template.autoesc.var.Variable;
 import com.google.template.autoesc.var.Value;
 import com.google.template.autoesc.viz.DetailLevel;
 import com.google.template.autoesc.viz.TextTables;
+import com.google.template.autoesc.viz.TextVizOutput;
 import com.google.template.autoesc.viz.VizOutput;
 
 import static com.google.template.autoesc.Parse.consOutput;
@@ -48,9 +50,9 @@ final class Reconciliation {
       boolean stackOnly) {
     if (LOG.shouldLogEventAtLevel(LogDetailLevel.HIGH_LEVEL)) {
       if (!stackOnly) {
-      System.out.println("inp   a" + mod + "=" + a.inp);
-      System.out.println("inp   b" + mod + "=" + b.inp);
-      System.out.println();
+        System.out.println("inp   a" + mod + "=" + a.inp);
+        System.out.println("inp   b" + mod + "=" + b.inp);
+        System.out.println();
       }
       ImmutableList.Builder<TextTables.Col> stacks = ImmutableList.builder();
       stacks.add(column(("stack a" + mod).trim(), a.stack));
@@ -69,6 +71,20 @@ final class Reconciliation {
     }
   }
 
+  static InputCursor reconcileInputs(ImmutableList<Parse> joinStates)
+  throws UnjoinableException {
+    Preconditions.checkArgument(!joinStates.isEmpty());
+    Parse joinState0 = joinStates.get(0);
+    InputCursor inp0 = joinState0.inp;
+    for (Parse joinState : joinStates.subList(1, joinStates.size())) {
+      InputCursor inp = joinState.inp;
+      if (!inp0.equals(inp)) {
+        throw new UnjoinableException(joinState0, inp0, joinState, inp);
+      }
+    }
+    return inp0;
+  }
+
   static FList<Output> reconcileOutputs(ImmutableList<Parse> joinStates)
   throws UnjoinableException {
     List<LinkedList<Output>> unreconciledOutputs = ImmutableList.copyOf(
@@ -82,7 +98,6 @@ final class Reconciliation {
               }
             })
         );
-
 
     FList<Output> reconciledOutputsRev = FList.empty();
     while (true) {
@@ -312,7 +327,7 @@ final class Reconciliation {
       ImmutableList<Parse> joinStates)
   throws UnjoinableException {
     Optional<Output> prior = Optional.<Output>absent();
-    Parse p = joinStates.get(1);
+    Parse p = joinStates.get(0);
     for (int i = 0, n = outputLists.size(); i < n; ++i) {
       LinkedList<Output> outputList = outputLists.get(i);
       Output current = outputList.isEmpty()

@@ -105,7 +105,7 @@ public final class HtmlGrammar extends GrammarFactory {
     lang.define("Element", or(
         ref("TextChar"),
         ref(N_END_TAG),
-        ref(N_SPECIAL_TAG),
+        seq(ref(N_SPECIAL_TAG), ref(N_END_TAG)),
         ref(N_TAG),
         ref(N_COMMENT),
         // This allows joined grammars to successfully commit to
@@ -122,8 +122,7 @@ public final class HtmlGrammar extends GrammarFactory {
                     ref(JsGrammar.N_PROGRAM.withPrefix(Prefixes.JS_PREFIX)),
                     ref(N_MALFORMED)),
                 closeTagPattern("script")
-                )
-            ),
+                )),
         seq(
             litIgnCase("<style"),
             ref("TagTail"),
@@ -240,9 +239,11 @@ public final class HtmlGrammar extends GrammarFactory {
                     litIgnCase("cite"),
                     litIgnCase("codebase"),
                     litIgnCase("href"),
+                    litIgnCase("icon"),
                     litIgnCase("longdesc"),
                     litIgnCase("src"),
-                    litIgnCase("usemap")
+                    litIgnCase("usemap"),
+                    lit("xml:base")
                     // TODO is this complete?
                 ),
                 not(ref("AttribNameChar")),

@@ -199,6 +199,7 @@ public final class Parser implements Joinable {
 
     Parse finalJoinState = joinStates.get(0).builder()
         .withOutput(Reconciliation.reconcileOutputs(joinStates))
+        .withInput(Reconciliation.reconcileInputs(joinStates))
         .build();
     finalJoinState = commit(finalJoinState);
 

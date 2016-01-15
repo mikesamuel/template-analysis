@@ -6,6 +6,7 @@ import com.google.template.autoesc.Completion;
 import com.google.template.autoesc.Combinator;
 import com.google.template.autoesc.Combinators;
 import com.google.template.autoesc.GrammarTestCase;
+import com.google.template.autoesc.UnjoinableException;
 import com.google.template.autoesc.grammars.CssGrammar.PropKindT;
 import com.google.template.autoesc.inp.StringTransforms;
 
@@ -388,6 +389,25 @@ public final class HtmlGrammarTest extends AbstractGrammarTest {
         .expectOutput(
             str("!"),
             rbnd("Html"));
+    test.run();
+  }
+
+  @Test(expected=UnjoinableException.class)
+  public final void testBrokenCloseTag() throws Exception {
+    GrammarTestCase.Builder test = makeTest();
+    GrammarTestCase.BranchBuilder emptyBranch = test.fork();
+    GrammarTestCase.BranchBuilder brokenSpecialTagBranch = test.fork()
+        .withInput("<script>foo({$z})//</scrpit>")
+        .expectOutput(
+            lbnd("SpecialTag"),
+            str("<script>"),
+            rbnd("SpecialTag"));
+    GrammarTestCase.BranchBuilder textNodeBranch = test.fork()
+        .withInput("Text&nbsp;node")
+        .expectOutput(
+            str("Text&nbsp;node"));
+    emptyBranch.join(brokenSpecialTagBranch, textNodeBranch)
+        .expectOutput(rbnd("Html"));
     test.run();
   }
 
