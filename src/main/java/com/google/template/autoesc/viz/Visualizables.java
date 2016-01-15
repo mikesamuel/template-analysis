@@ -2,8 +2,11 @@ package com.google.template.autoesc.viz;
 
 import java.io.IOException;
 
+import javax.annotation.Nullable;
+
+import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
-import com.google.template.autoesc.out.Output;
+import com.google.common.collect.Iterables;
 
 /**
  * Factories for instances of Visualizable.
@@ -20,8 +23,30 @@ public final class Visualizables {
   /**
    * A visualizable that puts commas between the elements of {@code ls}.
    */
-  public static Visualizable commaList(Iterable<? extends Output> ls) {
+  public static Visualizable commaList(Iterable<? extends Visualizable> ls) {
     return new CommaListVisualizable(ls);
+  }
+
+  /**
+   * A visualizable that makes a best effort to visualize o, falling back to
+   * {@code String.valueOf(Object)} in the worst case.
+   */
+  public static Visualizable ofObject(@Nullable Object o) {
+    if (o instanceof Visualizable) {
+      return (Visualizable) o;
+    } else if (o instanceof Iterable<?>) {
+      return commaList(
+          Iterables.transform(
+              (Iterable<?>) o,
+              new Function<Object, Visualizable>() {
+                @Override
+                public Visualizable apply(@Nullable Object x) {
+                  return ofObject(x);
+                }
+              }));
+    } else {
+      return text(String.valueOf(o));
+    }
   }
 }
 

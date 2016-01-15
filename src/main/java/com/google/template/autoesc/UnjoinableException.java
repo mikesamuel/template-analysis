@@ -1,6 +1,13 @@
 package com.google.template.autoesc;
 
+import java.io.IOException;
+
 import javax.annotation.Nullable;
+
+import com.google.template.autoesc.viz.DetailLevel;
+import com.google.template.autoesc.viz.TextVizOutput;
+import com.google.template.autoesc.viz.Visualizables;
+import com.google.template.autoesc.viz.VizOutput;
 
 /** Raised when two branches cannot be joined to continue a parse. */
 public class UnjoinableException extends Exception {
@@ -18,11 +25,21 @@ public class UnjoinableException extends Exception {
   private static String messageWithDifference(
       String message, Object aElement, Object bElement) {
     StringBuilder sb = new StringBuilder(message);
-    if (sb.length() != 0) {
-      sb.append(" : ");
+    try {
+      TextVizOutput out = new TextVizOutput(sb);
+      if (message.length() != 0) {
+        out.text(message);
+        out.text(" : ");
+      }
+      Visualizables.ofObject(aElement).visualize(DetailLevel.SHORT, out);
+      out.text(" != ");
+      Visualizables.ofObject(bElement).visualize(DetailLevel.SHORT, out);
+      return sb.toString();
+    } catch (IOException ex) {
+      // When the backing buffer is a StringBuilder, its the responsibility of
+      // TextVizOutput and Visualizable implementors not to throw IOException.
+      throw (AssertionError) new AssertionError().initCause(ex);
     }
-    sb.append(aElement).append(" != ").append(bElement);
-    return sb.toString();
   }
 
   /** */
