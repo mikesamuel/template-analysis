@@ -21,11 +21,16 @@ public final class Parser implements Joinable {
 
   /** */
   public Parser(Branch current, Language lang, ParseWatcher watcher) {
-    this(current, Parse.builder(lang).build(), watcher);
+    this(
+        current,
+        Parse.builder(lang)
+            .withStack(FList.of(lang.get(lang.defaultStartProdName)))
+            .build(),
+        watcher);
   }
 
-  private Parser(
-      Branch current, Parse parse, ParseWatcher watcher) {
+  /** */
+  public Parser(Branch current, Parse parse, ParseWatcher watcher) {
     this.current = current;
     this.watcher = watcher;
     this.parse = parse;
@@ -41,15 +46,12 @@ public final class Parser implements Joinable {
 
   /** Starts parsing at the named production. */
   public void startParse(ProdName startName) {
-    Combinator startProdBody = parse.lang.get(startName);
-    startParse(startProdBody);
+    startParse(parse.lang.get(startName));
   }
 
   /** Starts parsing at the given combinator. */
   public void startParse(Combinator start) {
-    parse = parse.builder()
-        .withStack(FList.cons(start, FList.<Combinator>empty()))
-        .build();
+    parse = parse.builder().withStack(FList.of(start)).build();
     watcher.started(parse);
     continueParse();
   }
