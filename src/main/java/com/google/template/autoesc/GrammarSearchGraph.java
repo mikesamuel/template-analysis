@@ -549,7 +549,8 @@ final class GrammarSearchGraph {
       final int branchIndex = step.branchIndex;
       if (DEBUG) {
         System.out.println(
-            "\n\nPERIPHERY ROUND " + roundNum + " branch=" + branchNames.get(branchIndex)
+            "\n\nPERIPHERY ROUND " + roundNum
+            + " branch=" + branchNames.get(branchIndex)
             + ":" + branchIndex);
         ++roundNum;
         TextTables.appendTable(
