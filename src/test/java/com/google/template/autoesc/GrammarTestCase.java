@@ -1,6 +1,8 @@
 package com.google.template.autoesc;
 
 import java.io.IOException;
+import java.io.PrintStream;
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -22,6 +24,7 @@ import com.google.common.base.Predicates;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.io.ByteStreams;
 import com.google.template.autoesc.demo.BranchRunner;
 import com.google.template.autoesc.demo.BranchRunner.Branch;
 import com.google.template.autoesc.demo.BranchRunner.StringSourcePair;
@@ -53,6 +56,8 @@ public final class GrammarTestCase {
   public final Predicate<Output> outputFilter;
   /** The start branch. */
   public final TestBranch startBranch;
+  /** How noisy to be on problems. */
+  public final Verbosity verbosity;
 
   /**
    * Parses can fork and join so a branch is an edge in that DAG.
@@ -85,12 +90,14 @@ public final class GrammarTestCase {
       int stepLimit,
       ProdName startProduction,
       Predicate<Output> outputFilter,
-      TestBranch startBranch) {
+      TestBranch startBranch,
+      Verbosity verbosity) {
     this.allLangs = allLangs;
     this.stepLimit = stepLimit;
     this.startProduction = startProduction;
     this.outputFilter = outputFilter;
     this.startBranch = startBranch;
+    this.verbosity = verbosity;
   }
 
   /** Actually run the test. */
@@ -127,7 +134,7 @@ public final class GrammarTestCase {
     Optional<URI> testDemoUri = getTestUrl(lang);
     maybeDumpDemoServerUri(testDemoUri);
     try {
-      watcher.printLog(System.err);
+      watcher.printLog(verbosity.getPrintStream());
     } catch (IOException ioe) {
       ioe.printStackTrace();
     }
@@ -135,9 +142,9 @@ public final class GrammarTestCase {
   }
 
 
-  private static void maybeDumpDemoServerUri(Optional<URI> demoServerUri) {
+  private void maybeDumpDemoServerUri(Optional<URI> demoServerUri) {
     if (demoServerUri.isPresent()) {
-      System.err.println(
+      verbosity.getPrintStream().println(
           "You can debug this by starting the demo server "
           + "and browsing to\n\n\t" + demoServerUri.get() + "\n");
     }
@@ -165,6 +172,7 @@ public final class GrammarTestCase {
     private int stepLimit = StepLimitingParseWatcher.DEFAULT_TEST_STEP_LIMIT;
     private Predicate<Output> outputFilter = Predicates.alwaysTrue();
     private BranchBuilder startBranch = new BranchBuilder(START_BRANCH_NAME);
+    private Verbosity verbosity = Verbosity.DUMP_TRACE;
 
     public Builder(Language lang) {
       this.start = lang.defaultStartProdName;
@@ -251,13 +259,20 @@ public final class GrammarTestCase {
     }
 
     @CheckReturnValue
+    public Builder quiet() {
+      this.verbosity = Verbosity.QUIET;
+      return this;
+    }
+
+    @CheckReturnValue
     public GrammarTestCase build() {
       return new GrammarTestCase(
           lang.build(),
           stepLimit,
           start,
           outputFilter,
-          startBranch.build());
+          startBranch.build(),
+          verbosity);
     }
 
     public void run() throws UnjoinableException {
@@ -613,4 +628,33 @@ final class BranchTerminationAssertionWatcher implements ParseWatcher {
     }
     return sb.toString();
   }
+}
+
+
+enum Verbosity {
+  QUIET() {
+    @Override
+    PrintStream getPrintStream() {
+      return NULL_PRINT_STREAM;
+    }
+  },
+  DUMP_TRACE() {
+    @Override
+    PrintStream getPrintStream() {
+      return System.err;
+    }
+  },
+  ;
+
+  static final PrintStream NULL_PRINT_STREAM;
+  static {
+    try {
+      NULL_PRINT_STREAM = new PrintStream(
+          ByteStreams.nullOutputStream(), true, "UTF-8");
+    } catch (UnsupportedEncodingException ex) {
+      throw new AssertionError(ex);
+    }
+  }
+
+  abstract PrintStream getPrintStream();
 }

@@ -278,12 +278,13 @@ public final class CharSetCombinator extends AtomicCombinator {
   private static final ImmutableRangeSet<Integer> normalize(
       RangeSet<Integer> ranges) {
     ImmutableRangeSet.Builder<Integer> b = ImmutableRangeSet.builder();
-    int lastLt = 0, lastRt = -1;
     for (Range<Integer> r : ranges.asRanges()) {
       int lt = r.hasLowerBound() ? r.lowerEndpoint() : 0;
       int rt = r.hasUpperBound() ? r.upperEndpoint() : Character.MAX_CODE_POINT;
       if (!r.contains(lt)) { ++lt; }
       if (!r.contains(rt)) { --rt; }
+      if (lt < 0) { lt = 0; }
+      if (rt > Character.MAX_CODE_POINT) { rt = Character.MAX_CODE_POINT; }
       if (lt > rt) {
         // Test whether the range contains any code points.
         // Testing r.isEmpty() doesn't work since the open-range
@@ -293,21 +294,7 @@ public final class CharSetCombinator extends AtomicCombinator {
         // parameters are dense and some are discrete.
         continue;
       }
-      if (lastLt <= lastRt) {
-        if (lt - 1 <= lastRt) {  // Adjacent or overlapping
-          lastLt = Math.min(lastLt, lt);
-          lastRt = Math.max(lastRt, rt);
-          continue;
-        }
-      }
-      if (lastLt <= lastRt) {
-        b.add(Range.closed(lastLt, lastRt));
-      }
-      lastLt = lt;
-      lastRt = rt;
-    }
-    if (lastLt <= lastRt) {
-      b.add(Range.closed(lastLt, lastRt));
+      b.add(r.canonical(UniRanges.CodepointsDomain.INSTANCE));
     }
     return b.build();
   }

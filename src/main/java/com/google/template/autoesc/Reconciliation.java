@@ -42,7 +42,7 @@ import static com.google.template.autoesc.Parse.consOutput;
  * a single parse state.
  */
 final class Reconciliation {
-  static final LogDetailLevel LOG = LogDetailLevel.HIGH_LEVEL;
+  static final LogDetailLevel LOG = LogDetailLevel.NONE;
 
   static void dumpState(
       Parse a, Parse b,

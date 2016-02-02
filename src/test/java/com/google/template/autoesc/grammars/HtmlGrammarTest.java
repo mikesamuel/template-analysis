@@ -394,7 +394,7 @@ public final class HtmlGrammarTest extends AbstractGrammarTest {
 
   @Test(expected=UnjoinableException.class)
   public final void testBrokenCloseTag() throws Exception {
-    GrammarTestCase.Builder test = makeTest();
+    GrammarTestCase.Builder test = makeTest().quiet();
     GrammarTestCase.BranchBuilder emptyBranch = test.fork();
     GrammarTestCase.BranchBuilder brokenSpecialTagBranch = test.fork()
         .withInput("<script>foo({$z})//</scrpit>")

@@ -234,10 +234,17 @@ final class StringCoalescingInfixer implements BinaryCombinator.Infixer {
   }
 
   static int leastCodePointOf(ImmutableRangeSet<Integer> cps) {
-    if (!cps.isEmpty()) {
-      Range<Integer> range0 = cps.asRanges().iterator().next();
-      if (range0.hasLowerBound()) {
-        return range0.lowerEndpoint();
+    for (Range<Integer> range : cps.asRanges()) {
+      if (range.hasLowerBound()) {
+        int least = range.lowerEndpoint();
+        if (cps.contains(least)) {
+          return least;
+        }
+        // Handle the case where we've got a left-open first range.
+        ++least;
+        if (cps.contains(least)) {
+          return least;
+        }
       }
     }
     return -1;

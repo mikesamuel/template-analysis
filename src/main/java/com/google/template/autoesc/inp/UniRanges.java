@@ -1,8 +1,10 @@
 package com.google.template.autoesc.inp;
 
+import java.io.Serializable;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import com.google.common.collect.DiscreteDomain;
 import com.google.common.collect.ImmutableRangeSet;
 import com.google.common.collect.Range;
 import com.google.common.collect.RangeSet;
@@ -16,7 +18,7 @@ public final class UniRanges {
   /** All code-points in [lt, rt]. */
   public static ImmutableRangeSet<Integer> btw(int lt, int rt) {
     return ImmutableRangeSet.<Integer>builder()
-        .add(Range.closed(lt, rt))
+        .add(Range.closedOpen(lt, rt + 1))
         .build();
   }
 
@@ -94,9 +96,9 @@ public final class UniRanges {
     ImmutableRangeSet.Builder<Integer> ranges = ImmutableRangeSet.builder();
     Matcher m = p.matcher(ALL);
     while (m.find()) {
-      ranges.add(Range.closed(
+      ranges.add(Range.closedOpen(
           Character.codePointAt(ALL, m.start()),
-          Character.codePointBefore(ALL, m.end())));
+          Character.codePointBefore(ALL, m.end()) + 1));
     }
 
     return ranges.build();
@@ -111,15 +113,69 @@ public final class UniRanges {
 
   /** All code-points. */
   public static final Range<Integer> ALL_CODEPOINTS_RANGE =
-      Range.closed(0, Character.MAX_CODE_POINT);
+      Range.closed(0, Character.MAX_CODE_POINT)
+      .canonical(CodepointsDomain.INSTANCE);
 
   /** All code-points in the basic-plane. */
   public static final Range<Integer> BASIC_PLANE_RANGE =
-      Range.closed(0, 0xFFFF);
+      Range.closed(0, 0xFFFF)
+      .canonical(CodepointsDomain.INSTANCE);
 
   /** All code-points. */
   public static final ImmutableRangeSet<Integer> ALL_CODEPOINTS =
       ImmutableRangeSet.of(ALL_CODEPOINTS_RANGE);
 
   private UniRanges() {}
+
+
+  /** A discrete domain for code-points. */
+  public static final class CodepointsDomain extends DiscreteDomain<Integer>
+  implements Serializable {
+
+    private CodepointsDomain() {
+      // Uninstantiable
+    }
+
+    /** Singleton */
+    public static final CodepointsDomain INSTANCE = new CodepointsDomain();
+
+    @Override
+    public long distance(Integer start, Integer end) {
+      return (long) end - start;
+    }
+
+    @Override
+    public Integer next(Integer value) {
+      int i = value;
+      return i == Character.MAX_CODE_POINT ? null : i + 1;
+    }
+
+    @Override
+    public Integer previous(Integer value) {
+      int i = value;
+      return i == 0 ? null : i - 1;
+    }
+
+    @Override
+    public Integer minValue() {
+      return 0;
+    }
+
+    @Override
+    public Integer maxValue() {
+      return Character.MAX_CODE_POINT;
+    }
+
+    @SuppressWarnings("static-method")
+    private Object readResolve() {
+      return INSTANCE;
+    }
+
+    @Override
+    public String toString() {
+      return "CodepointsDomain.INSTANCE";
+    }
+
+    private static final long serialVersionUID = 0;
+  }
 }

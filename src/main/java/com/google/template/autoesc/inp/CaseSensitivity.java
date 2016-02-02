@@ -25,11 +25,11 @@ public enum CaseSensitivity {
     public ImmutableRangeSet<Integer> enumerate(int cp) {
       if ('A' <= cp && cp <= 'Z' || 'a' <= cp && cp <= 'z') {
         return ImmutableRangeSet.<Integer>builder()
-            .add(Range.singleton(cp & ~32))
-            .add(Range.singleton(cp |  32))
+            .add(singletonRange(cp & ~32))
+            .add(singletonRange(cp |  32))
             .build();
       }
-      return ImmutableRangeSet.of(Range.singleton(cp));
+      return ImmutableRangeSet.of(singletonRange(cp));
     }
   },
   /** Case sensitive.  Normalizes each code-point to itself. */
@@ -42,7 +42,7 @@ public enum CaseSensitivity {
 
     @Override
     public ImmutableRangeSet<Integer> enumerate(int cp) {
-      return ImmutableRangeSet.of(Range.singleton(cp));
+      return ImmutableRangeSet.of(singletonRange(cp));
     }
   },
   ;
@@ -79,4 +79,13 @@ public enum CaseSensitivity {
    *   {@code enumerate(cp).contains(normalizeCodepoint(x))}.
    */
   public abstract ImmutableRangeSet<Integer> enumerate(int cp);
+
+  /**
+   * A singleton range that is canonical with respect to
+   * {@link UniRanges.CodepointsDomain}.
+   */
+  static Range<Integer> singletonRange(int cp) {
+    Range<Integer> r = Range.closedOpen(cp, cp + 1);
+    return r;
+  }
 }
